@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+          cache: true
+
+      - name: Resolve workspace
+        run: flutter pub get
+
+      - name: Format
+        run: dart format --set-exit-if-changed apps packages
+
+      - name: Analyze
+        run: dart analyze --fatal-infos .
+
+      - name: Test pure-Dart packages
+        run: |
+          for dir in packages/vf_core packages/vf_protocol packages/vf_domain apps/vaultflow_server; do
+            echo "::group::$dir"; (cd "$dir" && dart test --reporter github); echo "::endgroup::"
+          done
+
+      - name: Test Flutter packages
+        run: |
+          for dir in packages/vf_database packages/vf_network packages/vf_security packages/vf_sync packages/vf_transfer packages/vf_ui apps/vaultflow_app; do
+            echo "::group::$dir"; (cd "$dir" && flutter test --reporter github); echo "::endgroup::"
+          done

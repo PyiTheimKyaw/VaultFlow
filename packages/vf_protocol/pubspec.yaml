@@ -1,0 +1,16 @@
+name: vf_protocol
+description: "Wire contract shared by client and server: DTOs, enums, error codes, API paths."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  vf_core:
+    path: ../vf_core
+
+dev_dependencies:
+  test: ^1.25.0

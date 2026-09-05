@@ -1,0 +1,8 @@
+include: ../../analysis_options.yaml
+
+analyzer:
+  plugins:
+    - dart_frog_lint
+  exclude:
+    - build/**
+    - .dart_frog/**

@@ -1,0 +1,20 @@
+name: vf_ui
+description: "Design system: tokens, theme, breakpoints, adaptive scaffold, shared widgets."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  vf_core:
+    path: ../vf_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

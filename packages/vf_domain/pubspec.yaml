@@ -1,0 +1,18 @@
+name: vf_domain
+description: "Domain entities, repository interfaces and use cases (pure Dart)."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  vf_core:
+    path: ../vf_core
+  vf_protocol:
+    path: ../vf_protocol
+
+dev_dependencies:
+  test: ^1.25.0

@@ -1,0 +1,21 @@
+name: vaultflow_server
+description: VaultFlow API — auth, sync, and resumable chunked file transfer (Dart Frog).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  dart_frog: ^1.2.6
+  vf_core:
+    path: ../../packages/vf_core
+  vf_protocol:
+    path: ../../packages/vf_protocol
+
+dev_dependencies:
+  dart_frog_lint: ^0.1.0
+  mocktail: ^1.0.5
+  test: ^1.25.0

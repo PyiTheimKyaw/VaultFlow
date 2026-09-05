@@ -1,0 +1,40 @@
+name: vaultflow_app
+description: VaultFlow — personal cloud vault and workspace (Flutter client).
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+resolution: workspace
+
+dependencies:
+  cupertino_icons: ^1.0.8
+  flutter:
+    sdk: flutter
+  vf_core:
+    path: ../../packages/vf_core
+  vf_database:
+    path: ../../packages/vf_database
+  vf_domain:
+    path: ../../packages/vf_domain
+  vf_network:
+    path: ../../packages/vf_network
+  vf_protocol:
+    path: ../../packages/vf_protocol
+  vf_security:
+    path: ../../packages/vf_security
+  vf_sync:
+    path: ../../packages/vf_sync
+  vf_transfer:
+    path: ../../packages/vf_transfer
+  vf_ui:
+    path: ../../packages/vf_ui
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,75 @@
+# Local infrastructure for VaultFlow.
+#   docker compose up -d postgres minio        # infra only (default for development)
+#   docker compose --profile api up -d --build # also build and run the Dart API
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vaultflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vaultflow}
+      POSTGRES_USER: ${POSTGRES_USER:-vaultflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vaultflow}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./.docker-data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vaultflow} -d ${POSTGRES_DB:-vaultflow}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: vaultflow-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-vaultflow}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-vaultflow-secret}
+    ports:
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - ./.docker-data/minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-vaultflow} ${S3_SECRET_KEY:-vaultflow-secret} &&
+      mc mb --ignore-existing local/${S3_BUCKET:-vaultflow} &&
+      echo 'bucket ready'"
+
+  api:
+    profiles: ["api"]
+    build:
+      context: .
+      dockerfile: apps/vaultflow_server/Dockerfile
+    container_name: vaultflow-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-vaultflow}:${POSTGRES_PASSWORD:-vaultflow}@postgres:5432/${POSTGRES_DB:-vaultflow}
+      S3_ENDPOINT: minio
+      S3_PORT: 9000
+      S3_USE_SSL: "false"
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-vaultflow}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-vaultflow-secret}
+      S3_BUCKET: ${S3_BUCKET:-vaultflow}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - "${API_PORT:-8080}:8080"
