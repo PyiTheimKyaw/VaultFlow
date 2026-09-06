@@ -10,13 +10,21 @@ environment:
 resolution: workspace
 
 dependencies:
+  crypto: ^3.0.7
   cupertino_icons: ^1.0.8
+  drift: ^2.34.4
+  file_picker: ^12.2.0
   flutter:
     sdk: flutter
+  flutter_markdown_plus: ^1.0.12
   flutter_riverpod: ^3.4.3
   flutter_web_plugins:
     sdk: flutter
   go_router: ^18.0.1
+  intl: ^0.20.2
+  meta: ^1.16.0
+  path: ^1.9.1
+  path_provider: ^2.1.6
   riverpod_annotation: ^4.0.7
   vf_core:
     path: ../../packages/vf_core

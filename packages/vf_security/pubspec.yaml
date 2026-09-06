@@ -12,6 +12,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
+  flutter_secure_storage: ^11.0.0
   vf_core:
     path: ../vf_core
 

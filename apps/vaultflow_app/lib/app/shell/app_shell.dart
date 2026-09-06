@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
+import 'package:vaultflow_app/features/vault/presentation/folder_tree.dart';
 import 'package:vf_ui/vf_ui.dart';
 
 /// Primary navigation destinations, in branch order of the router.
@@ -31,7 +34,7 @@ const appDestinations = [
 ///
 /// Each destination is a [StatefulShellBranch], so switching tabs preserves
 /// the navigation stack (and scroll position) of the branch you left.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
@@ -43,52 +46,44 @@ class AppShell extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queued = ref.watch(outboxCountProvider).value ?? 0;
+    final location = GoRouterState.of(context).uri.path;
+    final selectedFolder = _folderIdFrom(location);
+    final title = switch (location) {
+      final l when l.startsWith(AppRoutes.settingsOutbox) => 'Sync queue',
+      _ => appDestinations[navigationShell.currentIndex].label,
+    };
+
     return AdaptiveScaffold(
       destinations: appDestinations,
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: _select,
       appBar: AppBar(
-        title: Text(appDestinations[navigationShell.currentIndex].label),
-        actions: const [
+        title: Text(title),
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: VfSpacing.md),
-            child: SyncStatusBadge(status: SyncBadgeStatus.synced),
+            padding: const EdgeInsets.only(right: VfSpacing.md),
+            child: SyncStatusBadge(
+              key: const Key('shell-sync-badge'),
+              status: queued == 0
+                  ? SyncBadgeStatus.synced
+                  : SyncBadgeStatus.pending,
+              onTap: () => context.go(AppRoutes.settingsOutbox),
+            ),
           ),
         ],
       ),
-      sidebar: const _SidebarPlaceholder(),
+      sidebar: FolderTree(selectedFolderId: selectedFolder),
       body: navigationShell,
     );
   }
-}
 
-/// Stand-in for the folder tree that arrives with Phase 2.
-class _SidebarPlaceholder extends StatelessWidget {
-  const _SidebarPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: const Key('sidebar'),
-      padding: const EdgeInsets.symmetric(vertical: VfSpacing.sm),
-      children: [
-        ListTile(
-          leading: const Icon(Icons.home_outlined),
-          title: const Text('All files'),
-          onTap: () => context.go(AppRoutes.vault),
-        ),
-        ListTile(
-          leading: const Icon(Icons.folder_outlined),
-          title: const Text('Sample folder'),
-          onTap: () => context.go(AppRoutes.folder('sample')),
-        ),
-        const ListTile(
-          leading: Icon(Icons.delete_outline),
-          title: Text('Trash'),
-          enabled: false,
-        ),
-      ],
-    );
+  /// `/vault/<id>` → `<id>`; anything else → `null` (root or not in vault).
+  static String? _folderIdFrom(String path) {
+    const prefix = '${AppRoutes.vault}/';
+    if (!path.startsWith(prefix)) return null;
+    final rest = path.substring(prefix.length);
+    return rest.isEmpty ? null : Uri.decodeComponent(rest.split('/').first);
   }
 }

@@ -16,7 +16,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$NoteDto {
 
- String get id; String get folderId; String get title; String get body; int get version; DateTime get createdAt; DateTime get updatedAt; DateTime? get deletedAt;
+ String get id; String get title; String get body; int get version; DateTime get createdAt; DateTime get updatedAt;/// Parent folder; `null` for the vault root.
+ String? get folderId; DateTime? get deletedAt;
 /// Create a copy of NoteDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +31,20 @@ $NoteDtoCopyWith<NoteDto> get copyWith => _$NoteDtoCopyWithImpl<NoteDto>(this as
 @override
 bool operator ==(Object other) {
   final _this = this as NoteDto;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NoteDto&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.folderId, _this.folderId) || other.folderId == _this.folderId)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.body, _this.body) || other.body == _this.body)&&(identical(other.version, _this.version) || other.version == _this.version)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.updatedAt, _this.updatedAt) || other.updatedAt == _this.updatedAt)&&(identical(other.deletedAt, _this.deletedAt) || other.deletedAt == _this.deletedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NoteDto&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.body, _this.body) || other.body == _this.body)&&(identical(other.version, _this.version) || other.version == _this.version)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.updatedAt, _this.updatedAt) || other.updatedAt == _this.updatedAt)&&(identical(other.folderId, _this.folderId) || other.folderId == _this.folderId)&&(identical(other.deletedAt, _this.deletedAt) || other.deletedAt == _this.deletedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as NoteDto;
-  return Object.hash(runtimeType,_this.id,_this.folderId,_this.title,_this.body,_this.version,_this.createdAt,_this.updatedAt,_this.deletedAt);
+  return Object.hash(runtimeType,_this.id,_this.title,_this.body,_this.version,_this.createdAt,_this.updatedAt,_this.folderId,_this.deletedAt);
 }
 
 @override
 String toString() {
   final _this = this as NoteDto;
-  return 'NoteDto(id: ${_this.id}, folderId: ${_this.folderId}, title: ${_this.title}, body: ${_this.body}, version: ${_this.version}, createdAt: ${_this.createdAt}, updatedAt: ${_this.updatedAt}, deletedAt: ${_this.deletedAt})';
+  return 'NoteDto(id: ${_this.id}, title: ${_this.title}, body: ${_this.body}, version: ${_this.version}, createdAt: ${_this.createdAt}, updatedAt: ${_this.updatedAt}, folderId: ${_this.folderId}, deletedAt: ${_this.deletedAt})';
 }
 
 
@@ -54,7 +55,7 @@ abstract mixin class $NoteDtoCopyWith<$Res>  {
   factory $NoteDtoCopyWith(NoteDto value, $Res Function(NoteDto) _then) = _$NoteDtoCopyWithImpl;
 @useResult
 $Res call({
- String id, String folderId, String title, String body, int version, DateTime createdAt, DateTime updatedAt, DateTime? deletedAt
+ String id, String title, String body, int version, DateTime createdAt, DateTime updatedAt, String? folderId, DateTime? deletedAt
 });
 
 
@@ -71,16 +72,16 @@ class _$NoteDtoCopyWithImpl<$Res>
 
 /// Create a copy of NoteDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? folderId = null,Object? title = null,Object? body = null,Object? version = null,Object? createdAt = null,Object? updatedAt = null,Object? deletedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? body = null,Object? version = null,Object? createdAt = null,Object? updatedAt = null,Object? folderId = freezed,Object? deletedAt = freezed,}) {
   return _then(NoteDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,folderId: null == folderId ? _self.folderId : folderId // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,body: null == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
 as String,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,updatedAt: null == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
-as DateTime,deletedAt: freezed == deletedAt ? _self.deletedAt : deletedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,folderId: freezed == folderId ? _self.folderId : folderId // ignore: cast_nullable_to_non_nullable
+as String?,deletedAt: freezed == deletedAt ? _self.deletedAt : deletedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }
@@ -166,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String folderId,  String title,  String body,  int version,  DateTime createdAt,  DateTime updatedAt,  DateTime? deletedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String body,  int version,  DateTime createdAt,  DateTime updatedAt,  String? folderId,  DateTime? deletedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NoteDto() when $default != null:
-return $default(_that.id,_that.folderId,_that.title,_that.body,_that.version,_that.createdAt,_that.updatedAt,_that.deletedAt);case _:
+return $default(_that.id,_that.title,_that.body,_that.version,_that.createdAt,_that.updatedAt,_that.folderId,_that.deletedAt);case _:
   return orElse();
 
 }
@@ -187,10 +188,10 @@ return $default(_that.id,_that.folderId,_that.title,_that.body,_that.version,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String folderId,  String title,  String body,  int version,  DateTime createdAt,  DateTime updatedAt,  DateTime? deletedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String body,  int version,  DateTime createdAt,  DateTime updatedAt,  String? folderId,  DateTime? deletedAt)  $default,) {final _that = this;
 switch (_that) {
 case _NoteDto():
-return $default(_that.id,_that.folderId,_that.title,_that.body,_that.version,_that.createdAt,_that.updatedAt,_that.deletedAt);case _:
+return $default(_that.id,_that.title,_that.body,_that.version,_that.createdAt,_that.updatedAt,_that.folderId,_that.deletedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -207,10 +208,10 @@ return $default(_that.id,_that.folderId,_that.title,_that.body,_that.version,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String folderId,  String title,  String body,  int version,  DateTime createdAt,  DateTime updatedAt,  DateTime? deletedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String body,  int version,  DateTime createdAt,  DateTime updatedAt,  String? folderId,  DateTime? deletedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _NoteDto() when $default != null:
-return $default(_that.id,_that.folderId,_that.title,_that.body,_that.version,_that.createdAt,_that.updatedAt,_that.deletedAt);case _:
+return $default(_that.id,_that.title,_that.body,_that.version,_that.createdAt,_that.updatedAt,_that.folderId,_that.deletedAt);case _:
   return null;
 
 }
@@ -222,16 +223,17 @@ return $default(_that.id,_that.folderId,_that.title,_that.body,_that.version,_th
 @JsonSerializable()
 
 class _NoteDto implements NoteDto {
-  const _NoteDto({required this.id, required this.folderId, required this.title, required this.body, required this.version, required this.createdAt, required this.updatedAt, this.deletedAt});
+  const _NoteDto({required this.id, required this.title, required this.body, required this.version, required this.createdAt, required this.updatedAt, this.folderId, this.deletedAt});
   factory _NoteDto.fromJson(Map<String, dynamic> json) => _$NoteDtoFromJson(json);
 
 @override final  String id;
-@override final  String folderId;
 @override final  String title;
 @override final  String body;
 @override final  int version;
 @override final  DateTime createdAt;
 @override final  DateTime updatedAt;
+/// Parent folder; `null` for the vault root.
+@override final  String? folderId;
 @override final  DateTime? deletedAt;
 
 /// Create a copy of NoteDto
@@ -247,18 +249,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NoteDto&&(identical(other.id, id) || other.id == id)&&(identical(other.folderId, folderId) || other.folderId == folderId)&&(identical(other.title, title) || other.title == title)&&(identical(other.body, body) || other.body == body)&&(identical(other.version, version) || other.version == version)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.deletedAt, deletedAt) || other.deletedAt == deletedAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NoteDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.body, body) || other.body == body)&&(identical(other.version, version) || other.version == version)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.folderId, folderId) || other.folderId == folderId)&&(identical(other.deletedAt, deletedAt) || other.deletedAt == deletedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,folderId,title,body,version,createdAt,updatedAt,deletedAt);
+    return Object.hash(runtimeType,id,title,body,version,createdAt,updatedAt,folderId,deletedAt);
 }
 
 @override
 String toString() {
-    return 'NoteDto(id: $id, folderId: $folderId, title: $title, body: $body, version: $version, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt)';
+    return 'NoteDto(id: $id, title: $title, body: $body, version: $version, createdAt: $createdAt, updatedAt: $updatedAt, folderId: $folderId, deletedAt: $deletedAt)';
 }
 
 
@@ -269,7 +271,7 @@ abstract mixin class _$NoteDtoCopyWith<$Res> implements $NoteDtoCopyWith<$Res> {
   factory _$NoteDtoCopyWith(_NoteDto value, $Res Function(_NoteDto) _then) = __$NoteDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String folderId, String title, String body, int version, DateTime createdAt, DateTime updatedAt, DateTime? deletedAt
+ String id, String title, String body, int version, DateTime createdAt, DateTime updatedAt, String? folderId, DateTime? deletedAt
 });
 
 
@@ -286,16 +288,16 @@ class __$NoteDtoCopyWithImpl<$Res>
 
 /// Create a copy of NoteDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? folderId = null,Object? title = null,Object? body = null,Object? version = null,Object? createdAt = null,Object? updatedAt = null,Object? deletedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? body = null,Object? version = null,Object? createdAt = null,Object? updatedAt = null,Object? folderId = freezed,Object? deletedAt = freezed,}) {
   return _then(_NoteDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,folderId: null == folderId ? _self.folderId : folderId // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,body: null == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
 as String,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,updatedAt: null == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
-as DateTime,deletedAt: freezed == deletedAt ? _self.deletedAt : deletedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,folderId: freezed == folderId ? _self.folderId : folderId // ignore: cast_nullable_to_non_nullable
+as String?,deletedAt: freezed == deletedAt ? _self.deletedAt : deletedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }

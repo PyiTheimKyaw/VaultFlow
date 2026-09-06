@@ -8,7 +8,6 @@ part 'document_dto.g.dart';
 abstract class DocumentDto with _$DocumentDto {
   const factory DocumentDto({
     required String id,
-    required String folderId,
     required String name,
     required String mimeType,
     required int sizeBytes,
@@ -16,6 +15,9 @@ abstract class DocumentDto with _$DocumentDto {
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+
+    /// Parent folder; `null` for the vault root.
+    String? folderId,
 
     /// Object-storage key; `null` until the upload session completes.
     String? storageKey,

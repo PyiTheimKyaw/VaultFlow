@@ -8,12 +8,14 @@ part 'note_dto.g.dart';
 abstract class NoteDto with _$NoteDto {
   const factory NoteDto({
     required String id,
-    required String folderId,
     required String title,
     required String body,
     required int version,
     required DateTime createdAt,
     required DateTime updatedAt,
+
+    /// Parent folder; `null` for the vault root.
+    String? folderId,
     DateTime? deletedAt,
   }) = _NoteDto;
 

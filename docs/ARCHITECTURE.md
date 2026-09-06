@@ -279,13 +279,14 @@ Each phase ends with a green `dart analyze`, green tests, and a runnable app. Ex
 - **Done 2026-09-06.** Notes: router uses `StatefulShellRoute.indexedStack` (one branch per destination, so tab stacks survive switching) with an auth `redirect` that preserves the deep link as `?from=`; the session is a placeholder Riverpod notifier until Phase 3. Generated `*.g.dart` / `*.freezed.dart` files are committed. Golden tests use a 0.5 % pixel-tolerance comparator (`packages/vf_ui/test/flutter_test_config.dart`) because CI renders on Linux.
 
 ### Phase 2 — Local database & fully offline CRUD
-- [ ] `vf_database`: Drift tables from §3.1, DAOs (`FoldersDao`, `DocumentsDao`, `NotesDao`, `OutboxDao`, `TransfersDao`, `ConflictsDao`), FTS5 for notes, migration strategy, `openDatabase()` per platform (SQLCipher native / wasm web)
-- [ ] `vf_security.DbKeyProvider` (random key → secure storage) — minimal slice needed by the DB opener
-- [ ] `vf_domain`: entities, `VaultRepository`, `NotesRepository` interfaces, use cases (`CreateFolder`, `MoveItem`, `RenameItem`, `SoftDelete`, `SaveNote`…)
-- [ ] Repository impls in `vf_database` write entity + **outbox row in one transaction** (coalescing rules)
-- [ ] Features `vault` (tree, list/grid, breadcrumb, create/rename/move/delete, import file via `file_picker` → copies to cache dir, `cache_state=complete`) and `notes` (list + Markdown editor with autosave)
-- [ ] Tests: DAO tests on in-memory Drift, coalescing rules, use-case tests with fakes
+- [x] `vf_database`: Drift tables from §3.1, DAOs (`FoldersDao`, `DocumentsDao`, `NotesDao`, `OutboxDao`, `TransfersDao`, `ConflictsDao`), FTS5 for notes, migration strategy, `openDatabase()` per platform (SQLCipher native / wasm web)
+- [x] `vf_security.DbKeyProvider` (random key → secure storage) — minimal slice needed by the DB opener
+- [x] `vf_domain`: entities, `VaultRepository`, `NotesRepository` interfaces, use cases (`CreateFolder`, `MoveItem`, `RenameItem`, `SoftDelete`, `SaveNote`…)
+- [x] Repository impls in `vf_database` write entity + **outbox row in one transaction** (coalescing rules)
+- [x] Features `vault` (tree, list/grid, breadcrumb, create/rename/move/delete, import file via `file_picker` → copies to cache dir, `cache_state=complete`) and `notes` (list + Markdown editor with autosave)
+- [x] Tests: DAO tests on in-memory Drift, coalescing rules, use-case tests with fakes
 - **Exit**: full CRUD works with no network; outbox fills up correctly (inspectable in a debug screen).
+- **Done 2026-09-06.** Notes: `package:sqlite3` 3.x bundles SQLite through Dart hooks, so the EOL `sqlite3_flutter_libs`/`sqlcipher_flutter_libs` packages are not used; the workspace `pubspec.yaml` selects `source: sqlite3mc` (SQLite3MultipleCiphers, ChaCha20) and `applyKey` refuses to open a vault when `PRAGMA cipher` is missing. Web uses `web/sqlite3.wasm` + `web/drift_worker.js` (drift 2.34.4 release assets) unencrypted; **the web app must be served with `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`** so drift can use OPFS — verified in Chrome that without them the IndexedDB fallback loses the last seconds of writes on reload. Build web with `--no-web-resources-cdn` so the engine assets are same-origin under COEP. macOS keychain uses the legacy (non data-protection) keychain because the data-protection one needs a team-signed `keychain-access-groups` entitlement. Root is `folderId == null` everywhere (protocol DTOs made nullable). FTS5 is an external-content table kept in sync by triggers; queries are tokenised into quoted prefix terms so user input cannot inject FTS operators. Imported files are content-addressed under `<app support>/vaultflow/cache/<hash[0:2]>/<hash>/<name>`; on web the file is hashed and registered with `cache_state = none` until Phase 5 uploads it. Sync queue debug screen lives at `/settings/outbox`.
 
 ### Phase 3 — Auth, network client, vault lock
 - [ ] Server: migrations `0001_init.sql` (users, devices, refresh_tokens), `/auth/*` routes, Argon2id, JWT, refresh rotation + reuse detection, auth middleware, request-id/error middleware

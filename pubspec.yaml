@@ -20,3 +20,11 @@ workspace:
 
 dev_dependencies:
   very_good_analysis: ^11.0.0
+
+# package:sqlite3 3.x bundles SQLite through Dart hooks. Select the
+# SQLite3MultipleCiphers build so the local database can be encrypted with
+# `PRAGMA key` (see packages/vf_database/lib/src/connection/).
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc
