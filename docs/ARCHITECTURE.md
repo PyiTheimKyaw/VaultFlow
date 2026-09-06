@@ -270,12 +270,13 @@ Each phase ends with a green `dart analyze`, green tests, and a runnable app. Ex
 - **Done 2026-09-05.** Notes: root `flutter pub get` is required (workspace contains Flutter members); `scripts/check.sh` mirrors CI; `dart_frog dev` verified with `/health`.
 
 ### Phase 1 — Core packages, design system, app shell
-- [ ] `vf_core`: `Result<T>`/`Failure` hierarchy, `Uuid.v7()`, `Clock`, `Logger`
-- [ ] `vf_protocol`: freezed DTOs for Folder/Document/Note, `SyncOp`, `EntityType`, `PushRequest/Response`, `ChangesResponse`, `UploadSession*`, `ApiErrorCode`, `ApiPaths`
-- [ ] `vf_ui`: color/typography tokens, light/dark `ThemeData`, `Breakpoints`, `AdaptiveScaffold`, `EmptyState`, `SyncStatusBadge`
-- [ ] App: `ProviderScope`, `go_router` with ShellRoute + placeholder pages for all routes, `usePathUrlStrategy()` on web, `window_manager` on desktop
-- [ ] Golden tests for `AdaptiveScaffold` at 400/700/1200 px
+- [x] `vf_core`: `Result<T>`/`Failure` hierarchy, `Uuid.v7()`, `Clock`, `Logger`
+- [x] `vf_protocol`: freezed DTOs for Folder/Document/Note, `SyncOp`, `EntityType`, `PushRequest/Response`, `ChangesResponse`, `UploadSession*`, `ApiErrorCode`, `ApiPaths`
+- [x] `vf_ui`: color/typography tokens, light/dark `ThemeData`, `Breakpoints`, `AdaptiveScaffold`, `EmptyState`, `SyncStatusBadge`
+- [x] App: `ProviderScope`, `go_router` with ShellRoute + placeholder pages for all routes, `usePathUrlStrategy()` on web, `window_manager` on desktop
+- [x] Golden tests for `AdaptiveScaffold` at 400/700/1200 px
 - **Exit**: navigable shell on phone, desktop and web with correct layouts and URLs.
+- **Done 2026-09-06.** Notes: router uses `StatefulShellRoute.indexedStack` (one branch per destination, so tab stacks survive switching) with an auth `redirect` that preserves the deep link as `?from=`; the session is a placeholder Riverpod notifier until Phase 3. Generated `*.g.dart` / `*.freezed.dart` files are committed. Golden tests use a 0.5 % pixel-tolerance comparator (`packages/vf_ui/test/flutter_test_config.dart`) because CI renders on Linux.
 
 ### Phase 2 — Local database & fully offline CRUD
 - [ ] `vf_database`: Drift tables from §3.1, DAOs (`FoldersDao`, `DocumentsDao`, `NotesDao`, `OutboxDao`, `TransfersDao`, `ConflictsDao`), FTS5 for notes, migration strategy, `openDatabase()` per platform (SQLCipher native / wasm web)

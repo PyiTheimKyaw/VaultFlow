@@ -9,8 +9,13 @@ environment:
 resolution: workspace
 
 dependencies:
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.12.0
   vf_core:
     path: ../vf_core
 
 dev_dependencies:
+  build_runner: ^2.16.1
+  freezed: ^4.0.1
+  json_serializable: ^6.14.1
   test: ^1.25.0
