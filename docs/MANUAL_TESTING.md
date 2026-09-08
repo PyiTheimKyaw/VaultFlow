@@ -37,6 +37,19 @@ Optional settings are read from `.env` (copy `.env.example`); only
 | Android emulator | `flutter run -d <emulator id> --dart-define=VAULTFLOW_API_BASE_URL=http://10.0.2.2:8080` |
 | Physical device | Same `--dart-define` with your computer's LAN IP, e.g. `http://192.168.1.10:8080`; for web `API=http://192.168.1.10:8080 scripts/serve_web.sh`. |
 
+Troubleshooting:
+
+- Android, first build: Flutter may install "Android SDK Platform 37" (needed
+  by `flutter_secure_storage`) during the Gradle run and then fail with
+  `Failed to find target with hash string 'android-37'`. Just run the build
+  again; the app pins `compileSdk` to at least 37.
+- A physical phone cannot reach `localhost` on your computer: pass
+  `--dart-define=VAULTFLOW_API_BASE_URL=http://<your-computer-LAN-IP>:8080`
+  and make sure both are on the same network (`ipconfig getifaddr en0` on
+  macOS prints the IP).
+- The Gradle warning about `workmanager_android` applying the Kotlin Gradle
+  Plugin is informational until a newer plugin release.
+
 Automated gate for reference: `scripts/check.sh` runs format, analyze and every
 test suite.
 

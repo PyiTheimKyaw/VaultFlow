@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "com.example.vault_flow"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage 11 compiles against API 37; keep the app at
+    // least that high so plugin and app agree.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
