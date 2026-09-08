@@ -18,7 +18,9 @@ void main() {
     if (skip != null) return;
     db = Database.fromUrl(url!);
     await db.migrate(Directory('migrations'));
-    await db.pool.execute('TRUNCATE refresh_tokens, devices, users');
+    // No TRUNCATE: the sync tables reference users, and the Postgres test
+    // files run in parallel isolates against the same database. Each test
+    // uses its own unique rows instead.
     store = PostgresAuthStore(db.pool);
   });
 
@@ -28,16 +30,19 @@ void main() {
 
   test('user, device and token round trip with rotation', () async {
     final now = DateTime.now().toUtc();
+    final email = 'pg-${VfId.random()}@example.com';
+    final hash1 = 'hash-${VfId.random()}';
+    final hash2 = 'hash-${VfId.random()}';
     final user = (await store.createUser(
       UserRecord(
         id: VfId.next(),
-        email: 'pg@example.com',
+        email: email,
         passwordHash: 'h',
         createdAt: now,
       ),
     ))!;
     expect(await store.createUser(user), isNull, reason: 'duplicate email');
-    expect((await store.findUserByEmail('PG@example.com'))!.id, user.id);
+    expect((await store.findUserByEmail(email.toUpperCase()))!.id, user.id);
 
     final device = DeviceRecord(
       id: VfId.next(),
@@ -52,7 +57,7 @@ void main() {
       userId: user.id,
       deviceId: device.id,
       familyId: VfId.next(),
-      tokenHash: 'hash1',
+      tokenHash: hash1,
       expiresAt: now.add(const Duration(days: 1)),
       createdAt: now,
     );
@@ -62,16 +67,16 @@ void main() {
       userId: user.id,
       deviceId: device.id,
       familyId: token.familyId,
-      tokenHash: 'hash2',
+      tokenHash: hash2,
       expiresAt: now.add(const Duration(days: 1)),
       createdAt: now,
     );
     await store.rotateRefreshToken(token.id, replacement);
     expect(
-      (await store.findRefreshTokenByHash('hash1'))!.replacedBy,
+      (await store.findRefreshTokenByHash(hash1))!.replacedBy,
       replacement.id,
     );
     await store.revokeFamily(token.familyId, now);
-    expect((await store.findRefreshTokenByHash('hash2'))!.revokedAt, isNotNull);
+    expect((await store.findRefreshTokenByHash(hash2))!.revokedAt, isNotNull);
   }, skip: skip);
 }

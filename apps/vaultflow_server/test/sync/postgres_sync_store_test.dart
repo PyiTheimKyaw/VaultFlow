@@ -21,16 +21,18 @@ void main() {
     if (skip != null) return;
     db = Database.fromUrl(url!);
     await db.migrate(Directory('migrations'));
-    await db.pool.execute(
-      'TRUNCATE changes, applied_ops, notes, documents, folders, '
-      'refresh_tokens, devices, users',
-    );
+    // No TRUNCATE (see postgres_auth_store_test.dart): a fresh user isolates
+    // this test's rows and feed.
     userId = VfId.next();
     await db.pool.execute(
       Sql.named(
         'INSERT INTO users (id, email, password_hash) VALUES (@id, @email, @h)',
       ),
-      parameters: {'id': userId, 'email': 'sync@example.com', 'h': 'x'},
+      parameters: {
+        'id': userId,
+        'email': 'sync-${VfId.random()}@example.com',
+        'h': 'x',
+      },
     );
     service = SyncService(store: PostgresSyncStore(db.pool));
   });
