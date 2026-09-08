@@ -15,5 +15,7 @@ export 'src/daos/transfers_dao.dart';
 export 'src/database.dart';
 export 'src/repositories/drift_notes_repository.dart';
 export 'src/repositories/drift_outbox_repository.dart';
+export 'src/repositories/drift_sync_repository.dart';
 export 'src/repositories/drift_vault_repository.dart';
+export 'src/repositories/mappers.dart';
 export 'src/vf_database_version.dart';

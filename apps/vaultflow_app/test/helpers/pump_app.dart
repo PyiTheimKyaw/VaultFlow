@@ -11,6 +11,7 @@ import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/router.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
+import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
 import 'package:vaultflow_app/features/vault/application/document_importer.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_database/testing.dart';
@@ -93,6 +94,8 @@ class TestApp {
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        // No scheduler in widget tests: the fake server has no sync routes.
+        syncEnabledProvider.overrideWithValue(false),
         tokenStoreProvider.overrideWithValue(tokenStore),
         apiClientProvider.overrideWithValue(apiClient),
         cacheDirectoryProvider.overrideWithValue(

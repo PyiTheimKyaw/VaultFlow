@@ -146,19 +146,57 @@ class OutboxDao extends DatabaseAccessor<VaultFlowDatabase>
   Future<void> remove(Iterable<int> ids) =>
       (delete(syncOutbox)..where((o) => o.id.isIn(ids))).go();
 
-  Future<void> markFailed(
+  /// Records a failed attempt. The row goes back to `pending` with a retry
+  /// time, or to `failed` once [giveUp] is set (surfaced in the UI, never
+  /// dropped).
+  Future<void> scheduleRetry(
     int id, {
-    required String error,
+    required int attemptCount,
     required DateTime nextAttemptAt,
+    required String error,
     required bool giveUp,
   }) => (update(syncOutbox)..where((o) => o.id.equals(id))).write(
     SyncOutboxCompanion(
       state: Value(giveUp ? OutboxState.failed : OutboxState.pending),
       lastError: Value(error),
       nextAttemptAt: Value(nextAttemptAt),
-      attemptCount: const Value(0),
+      attemptCount: Value(attemptCount),
     ),
   );
+
+  /// Puts rows back to `pending` without counting an attempt (e.g. the
+  /// request never left the device, or the process restarted mid-push).
+  Future<void> release(Iterable<int> ids) =>
+      (update(syncOutbox)..where((o) => o.id.isIn(ids))).write(
+        const SyncOutboxCompanion(state: Value(OutboxState.pending)),
+      );
+
+  /// Rows left `in_flight` by a crash; call once at start-up.
+  Future<int> recoverInFlight() =>
+      (update(syncOutbox)
+            ..where((o) => o.state.equalsValue(OutboxState.inFlight)))
+          .write(const SyncOutboxCompanion(state: Value(OutboxState.pending)));
+
+  /// Retries every `failed` row immediately ("Retry" in the UI).
+  Future<int> retryFailed() =>
+      (update(
+        syncOutbox,
+      )..where((o) => o.state.equalsValue(OutboxState.failed))).write(
+        const SyncOutboxCompanion(
+          state: Value(OutboxState.pending),
+          attemptCount: Value(0),
+          nextAttemptAt: Value(null),
+        ),
+      );
+
+  Stream<int> watchFailedCount() {
+    final count = countAll();
+    return (selectOnly(syncOutbox)
+          ..addColumns([count])
+          ..where(syncOutbox.state.equalsValue(OutboxState.failed)))
+        .map((row) => row.read(count) ?? 0)
+        .watchSingle();
+  }
 
   /// Releases rows waiting on a completed transfer.
   Future<void> unblock(String transferId) =>
@@ -171,7 +209,22 @@ class OutboxDao extends DatabaseAccessor<VaultFlowDatabase>
         ),
       );
 
-  /// Whether the entity has a row that has not reached the server yet.
+  /// Whether the entity has a coalescable (pending/blocked) row.
   Future<bool> hasPending(EntityType type, String entityId) async =>
       await _findMergeable(type, entityId) != null;
+
+  /// Whether any local edit for the entity has not reached the server,
+  /// including rows in flight or parked as failed.
+  Future<bool> hasUnsynced(EntityType type, String entityId) async {
+    final row =
+        await (select(syncOutbox)
+              ..where(
+                (o) =>
+                    o.entityType.equalsValue(type) &
+                    o.entityId.equals(entityId),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
 }

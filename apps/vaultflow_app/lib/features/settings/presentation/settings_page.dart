@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
+import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
 import 'package:vf_ui/vf_ui.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -41,6 +42,7 @@ class SettingsPage extends ConsumerWidget {
     final session = ref.watch(sessionControllerProvider);
     final queued = ref.watch(outboxCountProvider).value ?? 0;
     final lock = ref.watch(appLockControllerProvider);
+    final conflicts = ref.watch(conflictsProvider).value?.length ?? 0;
     return ListenableBuilder(
       listenable: lock,
       builder: (context, _) => ListView(
@@ -78,6 +80,21 @@ class SettingsPage extends ConsumerWidget {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.go(AppRoutes.settingsOutbox),
+          ),
+          ListTile(
+            key: const Key('settings-conflicts'),
+            leading: Icon(
+              Icons.warning_amber_rounded,
+              color: conflicts > 0 ? Theme.of(context).colorScheme.error : null,
+            ),
+            title: const Text('Conflicts'),
+            subtitle: Text(
+              conflicts == 0
+                  ? 'No conflicts'
+                  : '$conflicts item${conflicts == 1 ? '' : 's'} edited on two devices',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(AppRoutes.settingsConflicts),
           ),
           const Divider(),
           ListTile(

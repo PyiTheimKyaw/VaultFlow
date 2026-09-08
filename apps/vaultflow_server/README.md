@@ -26,3 +26,12 @@ Without `DATABASE_URL` the server uses an in-memory store (development only).
 With it, run `dart run bin/migrate.dart` first. Postgres integration tests run
 when `TEST_DATABASE_URL` points at a disposable database; CI provides one as a
 service container and runs the migrations before the test step.
+
+## Sync
+
+| Route | Notes |
+|---|---|
+| `POST /sync/push` | `PushRequest` (≤100 ops); per op `applied {new_version}` / `conflict {remote, remote_version}` / `rejected {error}`; idempotent on `(device_id, client_op_id)` |
+| `GET /sync/changes?since=&limit=&exclude_device=` | `ChangesResponse` page of the append-only feed |
+
+Both require a bearer access token; `device_id` in the push body must match the token.

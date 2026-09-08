@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
+import 'package:vaultflow_app/features/sync/presentation/sync_status.dart';
 import 'package:vaultflow_app/features/vault/presentation/folder_tree.dart';
 import 'package:vf_ui/vf_ui.dart';
 
@@ -47,12 +47,12 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final queued = ref.watch(outboxCountProvider).value ?? 0;
     final location = GoRouterState.of(context).uri.path;
     final selectedFolder = _folderIdFrom(location);
     final title = switch (location) {
       final l when l.startsWith(AppRoutes.settingsOutbox) => 'Sync queue',
       final l when l.startsWith(AppRoutes.settingsLock) => 'Vault lock',
+      final l when l.startsWith(AppRoutes.settingsConflicts) => 'Conflicts',
       _ => appDestinations[navigationShell.currentIndex].label,
     };
 
@@ -62,16 +62,10 @@ class AppShell extends ConsumerWidget {
       onDestinationSelected: _select,
       appBar: AppBar(
         title: Text(title),
-        actions: [
+        actions: const [
           Padding(
-            padding: const EdgeInsets.only(right: VfSpacing.md),
-            child: SyncStatusBadge(
-              key: const Key('shell-sync-badge'),
-              status: queued == 0
-                  ? SyncBadgeStatus.synced
-                  : SyncBadgeStatus.pending,
-              onTap: () => context.go(AppRoutes.settingsOutbox),
-            ),
+            padding: EdgeInsets.only(right: VfSpacing.md),
+            child: SyncStatusButton(),
           ),
         ],
       ),

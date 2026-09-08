@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
+import 'package:vaultflow_app/features/conflicts/presentation/conflict_resolver_sheet.dart';
 import 'package:vaultflow_app/features/notes/application/note_editor_controller.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/shared/result_feedback.dart';
+import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
 import 'package:vaultflow_app/features/vault/presentation/dialogs.dart';
 import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_ui/vf_ui.dart';
@@ -26,7 +28,11 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   final _title = TextEditingController();
   final _body = TextEditingController();
-  bool _loaded = false;
+
+  /// Text last written into the controllers from the database, used to
+  /// tell external changes apart from the user's own typing.
+  String? _seededTitle;
+  String? _seededBody;
   bool _preview = false;
 
   @override
@@ -36,11 +42,41 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     super.dispose();
   }
 
+  /// Mirrors the stored note into the fields.
+  ///
+  /// The stored note arrives on every change, including our own autosaves.
+  /// [_seededTitle]/[_seededBody] track the last stored text the editor has
+  /// acknowledged, so the cases can be told apart:
+  /// * first load → seed;
+  /// * stored text equals the fields → our own save round-tripped; move the
+  ///   baseline forward;
+  /// * stored text equals the baseline → nothing new from outside;
+  /// * otherwise something else changed the note (conflict resolution, a
+  ///   pulled edit): apply it unless the user has unsaved typing.
   void _seed(Note note) {
-    if (_loaded) return;
-    _loaded = true;
-    _title.text = note.title;
-    _body.text = note.body;
+    final firstLoad = _seededTitle == null;
+    final matchesFields = note.title == _title.text && note.body == _body.text;
+    if (!firstLoad && matchesFields) {
+      _seededTitle = note.title;
+      _seededBody = note.body;
+      return;
+    }
+    final unchangedInDb =
+        note.title == _seededTitle && note.body == _seededBody;
+    final userIsTyping =
+        !firstLoad &&
+        (_title.text != _seededTitle || _body.text != _seededBody);
+    if (!firstLoad && (unchangedInDb || userIsTyping)) return;
+    _seededTitle = note.title;
+    _seededBody = note.body;
+    _title.value = _title.value.copyWith(
+      text: note.title,
+      selection: TextSelection.collapsed(offset: note.title.length),
+    );
+    _body.value = _body.value.copyWith(
+      text: note.body,
+      selection: TextSelection.collapsed(offset: note.body.length),
+    );
   }
 
   void _changed() => ref
@@ -81,6 +117,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         message: '$e',
       ),
       data: (note) {
+        final hasOpenConflict = (ref.watch(conflictsProvider).value ?? const [])
+            .any((c) => c.entityId == widget.noteId);
         if (note == null || note.isDeleted) {
           return EmptyState(
             key: const Key('note-missing'),
@@ -172,6 +210,30 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               ),
             ),
             const Divider(),
+            if (note.syncStatus == SyncStatus.conflicted || hasOpenConflict)
+              MaterialBanner(
+                key: const Key('note-conflict-banner'),
+                leading: const Icon(Icons.warning_amber_rounded),
+                content: const Text(
+                  'This note was also edited on another device.',
+                ),
+                actions: [
+                  TextButton(
+                    key: const Key('note-resolve'),
+                    onPressed: () async {
+                      final conflicts =
+                          ref.read(conflictsProvider).value ?? const [];
+                      final match = conflicts
+                          .where((c) => c.entityId == note.id)
+                          .firstOrNull;
+                      if (match != null && context.mounted) {
+                        await showConflictResolverSheet(context, match);
+                      }
+                    },
+                    child: const Text('Resolve'),
+                  ),
+                ],
+              ),
             Expanded(
               child: _preview
                   ? Markdown(

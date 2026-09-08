@@ -13,3 +13,6 @@ export 'http/api_exception.dart';
 export 'http/middleware.dart';
 export 'http/request_helpers.dart';
 export 'server_context.dart';
+export 'sync/postgres_sync_store.dart';
+export 'sync/sync_service.dart';
+export 'sync/sync_store.dart';

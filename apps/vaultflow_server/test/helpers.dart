@@ -18,8 +18,11 @@ ServerContext testContext({FakeClock? clock}) {
     accessTokenTtl: const Duration(minutes: 15),
     clock: c,
   );
+  final syncStore = InMemorySyncStore();
   return ServerContext(
     config: const ServerConfig(jwtSecret: 'test-secret'),
+    syncStore: syncStore,
+    sync: SyncService(store: syncStore, clock: c),
     store: store,
     hasher: hasher,
     tokens: tokens,

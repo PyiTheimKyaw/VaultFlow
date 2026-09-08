@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Small string key/value store backed by the platform keychain.
@@ -43,11 +44,28 @@ final class KeychainSecureStore implements SecureStore {
   Future<void> write(String key, String value) =>
       _storage.write(key: key, value: value);
 
+  /// Deleting a key that does not exist fails on the legacy macOS keychain
+  /// (the plugin first tries the iCloud-synchronizable variant, which needs
+  /// an entitlement, and only treats "not found" on both variants as
+  /// success). Deletion is idempotent for callers, so the error is ignored
+  /// when the key is verifiably gone.
   @override
-  Future<void> delete(String key) => _storage.delete(key: key);
+  Future<void> delete(String key) async {
+    try {
+      await _storage.delete(key: key);
+    } on PlatformException {
+      if (await _storage.read(key: key) != null) rethrow;
+    }
+  }
 
   @override
-  Future<void> deleteAll() => _storage.deleteAll();
+  Future<void> deleteAll() async {
+    try {
+      await _storage.deleteAll();
+    } on PlatformException {
+      if ((await _storage.readAll()).isNotEmpty) rethrow;
+    }
+  }
 }
 
 /// In-memory [SecureStore] for tests and previews.

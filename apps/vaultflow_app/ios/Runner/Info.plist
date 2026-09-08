@@ -16,6 +16,15 @@
 	<string>6.0</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>VaultFlow uses Face ID to unlock your vault.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>dev.vaultflow.sync</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>vault_flow</string>
 	<key>CFBundlePackageType</key>

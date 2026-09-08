@@ -109,4 +109,43 @@ void main() {
     );
     expect(result.isOk, isTrue);
   });
+
+  test('push and changes are typed over the sync DTOs', () async {
+    adapter
+      ..on('POST', '/sync/push', (o) {
+        final ops = (o.data as Map)['ops'] as List;
+        expect((ops.single as Map)['op'], 'create');
+        return const FakeResponse(200, {
+          'results': [
+            {'client_op_id': 'c1', 'status': 'applied', 'new_version': 1},
+          ],
+        });
+      })
+      ..on('GET', '/sync/changes', (o) {
+        expect(o.queryParameters['since'], 7);
+        expect(o.queryParameters['exclude_device'], 'd');
+        return const FakeResponse(200, {
+          'changes': <Object?>[],
+          'next_cursor': 7,
+          'has_more': false,
+        });
+      });
+    final pushed = await client.push(
+      const PushRequest(
+        deviceId: 'd',
+        ops: [
+          SyncOpRequest(
+            clientOpId: 'c1',
+            entityType: EntityType.note,
+            entityId: 'n',
+            op: SyncOp.create,
+            baseVersion: 0,
+          ),
+        ],
+      ),
+    );
+    expect(pushed.getOrThrow().results.single.newVersion, 1);
+    final pulled = await client.changes(since: 7, excludeDeviceId: 'd');
+    expect(pulled.getOrThrow().hasMore, isFalse);
+  });
 }

@@ -18,9 +18,12 @@ scripts/                bootstrap.sh, gen.sh, check.sh
 
 ```bash
 scripts/bootstrap.sh                       # pub get, install dart_frog, start postgres + minio
-(cd apps/vaultflow_server && dart_frog dev) # API on http://localhost:8080
+scripts/dev_server.sh                      # API on http://localhost:8080 (in-memory unless DATABASE_URL is set)
+scripts/serve_web.sh                       # web build on http://127.0.0.1:8765 with COOP/COEP headers
 (cd apps/vaultflow_app && flutter run -d macos)   # or -d chrome / an Android / iOS device
 scripts/check.sh                           # format + analyze + all tests (same as CI)
 ```
 
 The roadmap and phase checklist live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+Manual test flows per phase: [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md).

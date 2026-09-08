@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
+import 'package:vaultflow_app/features/conflicts/presentation/conflict_resolver_sheet.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/shared/result_feedback.dart';
+import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
 import 'package:vaultflow_app/features/vault/presentation/dialogs.dart';
 import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_ui/vf_ui.dart';
@@ -165,6 +167,14 @@ class VaultItemActions {
     if (context.mounted) reportResult(context, result);
   }
 
+  /// Opens the resolver for this item's open conflict, if any.
+  Future<void> resolveConflict() async {
+    final conflicts = ref.read(conflictsProvider).value ?? const [];
+    final match = conflicts.where((c) => c.entityId == item.id).firstOrNull;
+    if (match == null || !context.mounted) return;
+    await showConflictResolverSheet(context, match);
+  }
+
   Future<void> delete() async {
     final confirmed = await showDeleteDialog(
       context,
@@ -299,15 +309,18 @@ PopupMenuButton<String> _menu(VaultItemActions actions) {
     key: Key('item-menu-${actions.item.id}'),
     tooltip: 'More',
     onSelected: (value) => unawaited(switch (value) {
+      'resolve' => actions.resolveConflict(),
       'rename' => actions.rename(),
       'move' => actions.move(),
       'delete' => actions.delete(),
       _ => Future<void>.value(),
     }),
-    itemBuilder: (context) => const [
-      PopupMenuItem(value: 'rename', child: Text('Rename')),
-      PopupMenuItem(value: 'move', child: Text('Move to…')),
-      PopupMenuItem(value: 'delete', child: Text('Delete')),
+    itemBuilder: (context) => [
+      if (actions.item.syncStatus == SyncStatus.conflicted)
+        const PopupMenuItem(value: 'resolve', child: Text('Resolve conflict…')),
+      const PopupMenuItem(value: 'rename', child: Text('Rename')),
+      const PopupMenuItem(value: 'move', child: Text('Move to…')),
+      const PopupMenuItem(value: 'delete', child: Text('Delete')),
     ],
   );
 }

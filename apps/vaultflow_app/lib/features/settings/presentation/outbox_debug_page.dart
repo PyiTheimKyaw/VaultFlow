@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
+import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
 import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_ui/vf_ui.dart';
 
@@ -46,11 +47,29 @@ class OutboxDebugPage extends ConsumerWidget {
               ),
               child: Wrap(
                 spacing: VfSpacing.sm,
+                runSpacing: VfSpacing.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Chip(
                     key: const Key('outbox-total'),
                     label: Text('${list.length} queued'),
                   ),
+                  ActionChip(
+                    key: const Key('outbox-sync-now'),
+                    avatar: const Icon(Icons.sync, size: 18),
+                    label: const Text('Sync now'),
+                    onPressed: () =>
+                        ref.read(syncCoordinatorProvider.notifier).syncNow(),
+                  ),
+                  if (byState.containsKey(OutboxState.failed))
+                    ActionChip(
+                      key: const Key('outbox-retry-failed'),
+                      avatar: const Icon(Icons.replay, size: 18),
+                      label: const Text('Retry failed'),
+                      onPressed: () => ref
+                          .read(syncCoordinatorProvider.notifier)
+                          .retryFailed(),
+                    ),
                   for (final entry in byState.entries)
                     Chip(label: Text('${entry.value} ${entry.key.name}')),
                 ],

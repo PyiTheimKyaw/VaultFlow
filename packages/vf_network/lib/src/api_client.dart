@@ -49,6 +49,32 @@ class ApiClient {
     (_) {},
   );
 
+  // ------------------------------------------------------------------ sync
+
+  Future<Result<PushResponse>> push(PushRequest request) => _run(
+    () => _dio.post<Map<String, Object?>>(
+      ApiPaths.syncPush,
+      data: request.toJson(),
+    ),
+    PushResponse.fromJson,
+  );
+
+  Future<Result<ChangesResponse>> changes({
+    required int since,
+    int limit = vfMaxChangesPageSize,
+    String? excludeDeviceId,
+  }) => _run(
+    () => _dio.get<Map<String, Object?>>(
+      ApiPaths.syncChanges,
+      queryParameters: {
+        'since': since,
+        'limit': limit,
+        'exclude_device': ?excludeDeviceId,
+      },
+    ),
+    ChangesResponse.fromJson,
+  );
+
   Future<Result<MeResponse>> me() => _run(
     () => _dio.get<Map<String, Object?>>(ApiPaths.authMe),
     MeResponse.fromJson,

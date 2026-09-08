@@ -1,5 +1,5 @@
 name: vf_sync
-description: "Offline-first sync engine: outbox processor, change puller, conflict detection, scheduler."
+description: "Sync engine: outbox processor, change puller, conflict detection and resolution, scheduler."
 publish_to: none
 version: 0.1.0
 
@@ -12,6 +12,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
+  meta: ^1.16.0
   vf_core:
     path: ../vf_core
   vf_database:
@@ -24,5 +25,9 @@ dependencies:
     path: ../vf_protocol
 
 dev_dependencies:
+  dio: ^5.11.1
+  fake_async: ^1.3.3
   flutter_test:
     sdk: flutter
+  vaultflow_server:
+    path: ../../apps/vaultflow_server

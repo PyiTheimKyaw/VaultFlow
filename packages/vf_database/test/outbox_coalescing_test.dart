@@ -151,8 +151,9 @@ void main() {
     await h.notes.createNote(h.note('1'));
     await h.notes.createNote(h.note('2'));
     final all = await h.outboxEntries();
-    await h.db.outboxDao.markFailed(
+    await h.db.outboxDao.scheduleRetry(
       all.first.id,
+      attemptCount: 1,
       error: 'boom',
       nextAttemptAt: h.clock.now().add(const Duration(minutes: 5)),
       giveUp: false,
@@ -173,5 +174,46 @@ void main() {
     expect(request.entityType, EntityType.note);
     expect(request.op, SyncOp.create);
     expect(request.payload['title'], 'hello');
+  });
+
+  test('scheduleRetry counts attempts and gives up into failed', () async {
+    await h.notes.createNote(h.note('x'));
+    final row = (await h.outboxEntries()).single;
+    await h.db.outboxDao.scheduleRetry(
+      row.id,
+      attemptCount: 3,
+      error: 'timeout',
+      nextAttemptAt: h.clock.now().add(const Duration(seconds: 8)),
+      giveUp: false,
+    );
+    var entry = (await h.outboxEntries()).single;
+    expect(entry.state, OutboxState.pending);
+    expect(entry.attemptCount, 3);
+    expect(entry.lastError, 'timeout');
+    expect(await h.db.outboxDao.nextPending(now: h.clock.now()), isEmpty);
+
+    await h.db.outboxDao.scheduleRetry(
+      row.id,
+      attemptCount: 10,
+      error: 'timeout',
+      nextAttemptAt: h.clock.now(),
+      giveUp: true,
+    );
+    entry = (await h.outboxEntries()).single;
+    expect(entry.state, OutboxState.failed);
+    expect(await h.db.outboxDao.watchFailedCount().first, 1);
+
+    expect(await h.db.outboxDao.retryFailed(), 1);
+    entry = (await h.outboxEntries()).single;
+    expect(entry.state, OutboxState.pending);
+    expect(entry.attemptCount, 0);
+  });
+
+  test('recoverInFlight releases rows left in flight by a crash', () async {
+    await h.notes.createNote(h.note('x'));
+    final row = (await h.outboxEntries()).single;
+    await h.db.outboxDao.markInFlight([row.id]);
+    expect(await h.db.outboxDao.recoverInFlight(), 1);
+    expect((await h.outboxEntries()).single.state, OutboxState.pending);
   });
 }

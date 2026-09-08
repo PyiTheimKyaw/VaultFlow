@@ -5,6 +5,9 @@ import 'package:vaultflow_server/auth/postgres_auth_store.dart';
 import 'package:vaultflow_server/auth/token_service.dart';
 import 'package:vaultflow_server/config.dart';
 import 'package:vaultflow_server/db/database.dart';
+import 'package:vaultflow_server/sync/postgres_sync_store.dart';
+import 'package:vaultflow_server/sync/sync_service.dart';
+import 'package:vaultflow_server/sync/sync_store.dart';
 import 'package:vf_core/vf_core.dart';
 
 const _log = Logger('server');
@@ -17,6 +20,8 @@ class ServerContext {
     required this.hasher,
     required this.tokens,
     required this.auth,
+    required this.syncStore,
+    required this.sync,
     this.database,
   });
 
@@ -26,13 +31,16 @@ class ServerContext {
   }) {
     final Database? database;
     final AuthStore store;
+    final SyncStore syncStore;
     if (config.usesPostgres) {
       database = Database.fromUrl(config.databaseUrl!);
       store = PostgresAuthStore(database.pool);
+      syncStore = PostgresSyncStore(database.pool);
       _log.info('using postgres store');
     } else {
       database = null;
       store = InMemoryAuthStore();
+      syncStore = InMemorySyncStore();
       _log.warning('DATABASE_URL not set: using in-memory store (dev only)');
     }
     final hasher = PasswordHasher(
@@ -57,6 +65,8 @@ class ServerContext {
         refreshTokenTtl: config.refreshTokenTtl,
         clock: clock,
       ),
+      syncStore: syncStore,
+      sync: SyncService(store: syncStore, clock: clock),
     );
   }
 
@@ -66,6 +76,8 @@ class ServerContext {
   final PasswordHasher hasher;
   final TokenService tokens;
   final AuthService auth;
+  final SyncStore syncStore;
+  final SyncService sync;
 }
 
 ServerContext? _global;
