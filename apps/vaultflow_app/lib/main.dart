@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vaultflow_app/app/app.dart';
 import 'package:vaultflow_app/app/bootstrap.dart';
 import 'package:vaultflow_app/app/di.dart';
+import 'package:vaultflow_app/features/auth/application/session_controller.dart';
+import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_database/vf_database.dart';
 import 'package:vf_security/vf_security.dart';
@@ -13,9 +15,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await bootstrap();
 
+  final secureStore = KeychainSecureStore();
   final VaultFlowDatabase db;
   try {
-    final keys = DbKeyProvider(KeychainSecureStore());
+    final keys = DbKeyProvider(secureStore);
     db = await openVaultFlowDatabase(keyLoader: keys.getOrCreate);
   } on Object catch (error, stackTrace) {
     _log.error('database failed to open', error: error, stackTrace: stackTrace);
@@ -23,9 +26,25 @@ Future<void> main() async {
     return;
   }
 
+  // Restore the session before the first frame so the router starts on the
+  // right page instead of flashing the login screen.
+  final tokens = await SecureTokenStore(secureStore).read();
+  final initialSession = tokens == null
+      ? const SignedOut()
+      : SignedIn(userId: tokens.userId, deviceId: tokens.deviceId, email: null);
+
+  final container = ProviderContainer(
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      secureStoreProvider.overrideWithValue(secureStore),
+      initialSessionProvider.overrideWithValue(initialSession),
+    ],
+  );
+  await container.read(appLockControllerProvider).initialize();
+
   runApp(
-    ProviderScope(
-      overrides: [databaseProvider.overrideWithValue(db)],
+    UncontrolledProviderScope(
+      container: container,
       child: const VaultFlowApp(),
     ),
   );

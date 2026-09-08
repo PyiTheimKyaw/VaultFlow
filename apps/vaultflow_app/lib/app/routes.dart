@@ -7,6 +7,7 @@ abstract final class AppRoutes {
   static const String transfers = '/transfers';
   static const String settings = '/settings';
   static const String settingsOutbox = '/settings/outbox';
+  static const String settingsLock = '/settings/lock';
 
   static const String folderParam = 'folderId';
   static const String noteParam = 'noteId';
@@ -22,4 +23,5 @@ abstract final class AppRoutes {
   static const String transfersName = 'transfers';
   static const String settingsName = 'settings';
   static const String settingsOutboxName = 'settings-outbox';
+  static const String settingsLockName = 'settings-lock';
 }

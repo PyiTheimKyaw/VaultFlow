@@ -14,6 +14,7 @@ void main() {
 
   testApp('deep link is preserved through login', (tester) async {
     final app = await TestApp.pump(tester, signedIn: false);
+    app.server.users['a@b.c'] = 'pw';
     app.go('/notes/abc');
     await tester.pumpAndSettle();
     expect(app.location, '/login?from=%2Fnotes%2Fabc');
@@ -95,7 +96,9 @@ void main() {
 
   testApp('sign out returns to /login', (tester) async {
     final app = await TestApp.pump(tester, initialLocation: '/settings');
-    await tester.tap(find.text('Sign out'));
+    await tester.tap(find.byKey(const Key('settings-sign-out')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sign-out-confirm')));
     await tester.pumpAndSettle();
     expect(app.location, '/login?from=%2Fsettings');
   });

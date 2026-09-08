@@ -8,6 +8,7 @@ abstract final class ApiPaths {
   static const String authLogin = '/auth/login';
   static const String authRefresh = '/auth/refresh';
   static const String authLogout = '/auth/logout';
+  static const String authMe = '/auth/me';
 
   static const String syncPush = '/sync/push';
   static const String syncChanges = '/sync/changes';

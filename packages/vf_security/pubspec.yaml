@@ -10,9 +10,12 @@ environment:
 resolution: workspace
 
 dependencies:
+  cryptography: ^2.9.0
   flutter:
     sdk: flutter
   flutter_secure_storage: ^11.0.0
+  local_auth: ^3.0.2
+  meta: ^1.16.0
   vf_core:
     path: ../vf_core
 

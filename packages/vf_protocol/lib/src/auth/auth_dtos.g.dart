@@ -52,3 +52,16 @@ Map<String, dynamic> _$AuthTokensToJson(_AuthTokens instance) =>
       'user_id': instance.userId,
       'expires_in': instance.expiresIn,
     };
+
+_MeResponse _$MeResponseFromJson(Map<String, dynamic> json) => _MeResponse(
+  userId: json['user_id'] as String,
+  email: json['email'] as String,
+  deviceId: json['device_id'] as String,
+);
+
+Map<String, dynamic> _$MeResponseToJson(_MeResponse instance) =>
+    <String, dynamic>{
+      'user_id': instance.userId,
+      'email': instance.email,
+      'device_id': instance.deviceId,
+    };

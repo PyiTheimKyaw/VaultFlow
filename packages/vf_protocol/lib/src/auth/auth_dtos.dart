@@ -52,3 +52,16 @@ abstract class AuthTokens with _$AuthTokens {
   factory AuthTokens.fromJson(Map<String, Object?> json) =>
       _$AuthTokensFromJson(json);
 }
+
+/// Response of `GET /auth/me`.
+@freezed
+abstract class MeResponse with _$MeResponse {
+  const factory MeResponse({
+    required String userId,
+    required String email,
+    required String deviceId,
+  }) = _MeResponse;
+
+  factory MeResponse.fromJson(Map<String, Object?> json) =>
+      _$MeResponseFromJson(json);
+}

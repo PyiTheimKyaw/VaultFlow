@@ -52,6 +52,7 @@ class AppShell extends ConsumerWidget {
     final selectedFolder = _folderIdFrom(location);
     final title = switch (location) {
       final l when l.startsWith(AppRoutes.settingsOutbox) => 'Sync queue',
+      final l when l.startsWith(AppRoutes.settingsLock) => 'Vault lock',
       _ => appDestinations[navigationShell.currentIndex].label,
     };
 

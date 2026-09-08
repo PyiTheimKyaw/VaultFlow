@@ -1,6 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:vaultflow_app/features/auth/application/session_controller.dart';
+import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
+import 'package:vaultflow_app/features/lock/application/lock_settings_store.dart';
 import 'package:vf_database/vf_database.dart';
 import 'package:vf_domain/vf_domain.dart';
+import 'package:vf_network/vf_network.dart';
+import 'package:vf_security/vf_security.dart';
 
 part 'di.g.dart';
 
@@ -82,3 +88,57 @@ Stream<List<OutboxEntry>> outboxEntries(Ref ref) =>
 @riverpod
 Stream<int> outboxCount(Ref ref) =>
     ref.watch(outboxRepositoryProvider).watchPendingCount();
+
+// ------------------------------------------------------------ platform
+
+/// API origin; override with `--dart-define=VAULTFLOW_API_BASE_URL=...`.
+const String apiBaseUrl = String.fromEnvironment(
+  'VAULTFLOW_API_BASE_URL',
+  defaultValue: 'http://localhost:8080',
+);
+
+@Riverpod(keepAlive: true)
+SecureStore secureStore(Ref ref) => KeychainSecureStore();
+
+@Riverpod(keepAlive: true)
+TokenStore tokenStore(Ref ref) =>
+    SecureTokenStore(ref.watch(secureStoreProvider));
+
+@Riverpod(keepAlive: true)
+ConnectivityMonitor connectivity(Ref ref) => PluginConnectivityMonitor();
+
+@Riverpod(keepAlive: true)
+ApiClient apiClient(Ref ref) => ApiClient(
+  DioFactory.create(
+    baseUrl: apiBaseUrl,
+    tokens: ref.watch(tokenStoreProvider),
+    logRequests: kDebugMode,
+    onAuthLost: () => ref.read(sessionControllerProvider.notifier).onAuthLost(),
+  ),
+);
+
+// ---------------------------------------------------------------- lock
+
+@Riverpod(keepAlive: true)
+PinVault pinVault(Ref ref) => PinVault(ref.watch(secureStoreProvider));
+
+@Riverpod(keepAlive: true)
+BiometricGate biometricGate(Ref ref) => kIsWeb
+    ? FakeBiometricGate(result: BiometricAvailability.unsupported)
+    : LocalAuthBiometricGate();
+
+@Riverpod(keepAlive: true)
+LockSettingsStore lockSettingsStore(Ref ref) =>
+    DbLockSettingsStore(ref.watch(databaseProvider).settingsDao);
+
+/// Created once; `main` calls `initialize()` before the first frame.
+@Riverpod(keepAlive: true)
+AppLockController appLockController(Ref ref) {
+  final controller = AppLockController(
+    pin: ref.watch(pinVaultProvider),
+    biometrics: ref.watch(biometricGateProvider),
+    settingsStore: ref.watch(lockSettingsStoreProvider),
+  );
+  ref.onDispose(controller.dispose);
+  return controller;
+}

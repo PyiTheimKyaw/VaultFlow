@@ -8,6 +8,54 @@ part of 'session_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Initial state computed in `main` from the keychain before the first
+/// frame, so the router never sees a "restoring" limbo.
+
+@ProviderFor(initialSession)
+final initialSessionProvider = InitialSessionProvider._();
+
+/// Initial state computed in `main` from the keychain before the first
+/// frame, so the router never sees a "restoring" limbo.
+
+final class InitialSessionProvider
+    extends $FunctionalProvider<SessionState, SessionState, SessionState>
+    with $Provider<SessionState> {
+  /// Initial state computed in `main` from the keychain before the first
+  /// frame, so the router never sees a "restoring" limbo.
+  InitialSessionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'initialSessionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$initialSessionHash();
+
+  @$internal
+  @override
+  $ProviderElement<SessionState> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  SessionState create(Ref ref) {
+    return initialSession(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SessionState value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SessionState>(value),
+    );
+  }
+}
+
+String _$initialSessionHash() => r'bbb23a57585cd4770a7d5c987316dbe117d435bb';
 
 @ProviderFor(SessionController)
 final sessionControllerProvider = SessionControllerProvider._();
@@ -20,7 +68,7 @@ final class SessionControllerProvider
         argument: null,
         retry: null,
         name: r'sessionControllerProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -41,7 +89,7 @@ final class SessionControllerProvider
   }
 }
 
-String _$sessionControllerHash() => r'a57b8da51e2e73cfe8967962e5165ea46d18eb71';
+String _$sessionControllerHash() => r'70c3f1a70e579002c62cf56f03af0e4e0836e18c';
 
 abstract class _$SessionController extends $Notifier<SessionState> {
   SessionState build();

@@ -6,6 +6,7 @@ import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/app/shell/app_shell.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/presentation/login_page.dart';
+import 'package:vaultflow_app/features/lock/presentation/lock_settings_page.dart';
 import 'package:vaultflow_app/features/notes/presentation/note_editor_page.dart';
 import 'package:vaultflow_app/features/notes/presentation/notes_page.dart';
 import 'package:vaultflow_app/features/settings/presentation/outbox_debug_page.dart';
@@ -119,6 +120,11 @@ GoRouter router(Ref ref) {
                     path: 'outbox',
                     name: AppRoutes.settingsOutboxName,
                     builder: (context, state) => const OutboxDebugPage(),
+                  ),
+                  GoRoute(
+                    path: 'lock',
+                    name: AppRoutes.settingsLockName,
+                    builder: (context, state) => const LockSettingsPage(),
                   ),
                 ],
               ),

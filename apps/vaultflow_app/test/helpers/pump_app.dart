@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +10,16 @@ import 'package:vaultflow_app/app/app.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/router.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
+import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
 import 'package:vaultflow_app/features/vault/application/document_importer.dart';
+import 'package:vf_core/vf_core.dart';
 import 'package:vf_database/testing.dart';
 import 'package:vf_database/vf_database.dart';
+import 'package:vf_network/vf_network.dart';
+import 'package:vf_protocol/vf_protocol.dart';
+import 'package:vf_security/vf_security.dart';
+
+import 'fake_auth_server.dart';
 
 class TempCacheDirectory implements CacheDirectory {
   TempCacheDirectory(this.root);
@@ -21,20 +29,35 @@ class TempCacheDirectory implements CacheDirectory {
   Future<String> cacheRoot() async => root;
 }
 
-/// A fully wired app on an in-memory database.
+/// A fully wired app on an in-memory database, keychain and auth server.
 class TestApp {
-  TestApp._(this.tester, this.container, this.db, this.cacheDir);
+  TestApp._(
+    this.tester,
+    this.container,
+    this.db,
+    this.cacheDir,
+    this.server,
+    this.secureStore,
+    this.biometrics,
+    this.clock,
+  );
 
   final WidgetTester tester;
   final ProviderContainer container;
   final VaultFlowDatabase db;
   final Directory cacheDir;
+  final FakeAuthServer server;
+  final InMemorySecureStore secureStore;
+  final FakeBiometricGate biometrics;
+  final FakeClock clock;
 
   static Future<TestApp> pump(
     WidgetTester tester, {
     Size size = const Size(1200, 800),
     bool signedIn = true,
     String? initialLocation,
+    String? pin,
+    LockSettings lockSettings = const LockSettings(),
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -44,23 +67,80 @@ class TestApp {
     // Synchronous I/O only: widget tests run under fake async, where real
     // asynchronous file operations never complete.
     final cacheDir = Directory.systemTemp.createTempSync('vf_app_test_');
-    final container = ProviderContainer(
+    final server = FakeAuthServer();
+    final secureStore = InMemorySecureStore();
+    final biometrics = FakeBiometricGate();
+    final clock = FakeClock(DateTime.utc(2026, 9, 7, 9));
+    final pinVault = PinVault(
+      secureStore,
+      clock: clock,
+      random: Random(7),
+      memoryKiB: 64,
+      iterations: 1,
+    );
+    if (pin != null) await pinVault.setPin(pin);
+
+    final tokenStore = SecureTokenStore(secureStore);
+    late final ProviderContainer container;
+    final apiClient = ApiClient(
+      DioFactory.create(
+        baseUrl: 'https://api.test',
+        tokens: tokenStore,
+        onAuthLost: () =>
+            container.read(sessionControllerProvider.notifier).onAuthLost(),
+      )..httpClientAdapter = server.adapter,
+    );
+    container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        tokenStoreProvider.overrideWithValue(tokenStore),
+        apiClientProvider.overrideWithValue(apiClient),
         cacheDirectoryProvider.overrideWithValue(
           TempCacheDirectory(cacheDir.path),
         ),
+        secureStoreProvider.overrideWithValue(secureStore),
+        biometricGateProvider.overrideWithValue(biometrics),
+        pinVaultProvider.overrideWithValue(pinVault),
+        initialSessionProvider.overrideWithValue(
+          signedIn
+              ? const SignedIn(
+                  userId: 'user-me@example.com',
+                  deviceId: 'device-1',
+                  email: 'me@example.com',
+                )
+              : const SignedOut(),
+        ),
+        appLockControllerProvider.overrideWith((ref) {
+          final controller = AppLockController(
+            pin: pinVault,
+            biometrics: biometrics,
+            settingsStore: ref.watch(lockSettingsStoreProvider),
+            clock: clock,
+          );
+          ref.onDispose(controller.dispose);
+          return controller;
+        }),
       ],
     );
+    if (signedIn) {
+      await tokenStore.write(
+        const AuthTokens(
+          accessToken: 'access-0',
+          refreshToken: 'refresh-0',
+          deviceId: 'device-1',
+          userId: 'user-me@example.com',
+          expiresIn: 900,
+        ),
+      );
+    }
+    await container.read(lockSettingsStoreProvider).save(lockSettings);
+    await container.read(appLockControllerProvider).initialize();
+
     addTearDown(() {
       container.dispose();
-      cacheDir.deleteSync(recursive: true);
+      // Sign-out wipes the cache directory itself.
+      if (cacheDir.existsSync()) cacheDir.deleteSync(recursive: true);
     });
-    if (signedIn) {
-      container
-          .read(sessionControllerProvider.notifier)
-          .signInPlaceholder('me@example.com');
-    }
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -71,7 +151,16 @@ class TestApp {
       container.read(routerProvider).go(initialLocation);
     }
     await tester.pumpAndSettle();
-    return TestApp._(tester, container, db, cacheDir);
+    return TestApp._(
+      tester,
+      container,
+      db,
+      cacheDir,
+      server,
+      secureStore,
+      biometrics,
+      clock,
+    );
   }
 
   String get location => container
@@ -82,6 +171,8 @@ class TestApp {
       .toString();
 
   void go(String location) => container.read(routerProvider).go(location);
+
+  AppLockController get lock => container.read(appLockControllerProvider);
 
   /// Awaits a database future from inside a widget test.
   ///
