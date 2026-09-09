@@ -81,6 +81,49 @@ class TokenService {
     return AccessClaims(userId: sub, deviceId: dev);
   }
 
+  /// A short-lived token that authorises exactly one document download,
+  /// carried in the URL so a browser can fetch it without headers.
+  String signDownloadToken({
+    required String userId,
+    required String documentId,
+    required Duration ttl,
+  }) {
+    final now = clock.now();
+    return JWT({
+      'sub': userId,
+      'doc': documentId,
+      'typ': 'download',
+      'iat': now.millisecondsSinceEpoch ~/ 1000,
+      'exp': now.add(ttl).millisecondsSinceEpoch ~/ 1000,
+    }, issuer: issuer).sign(_key);
+  }
+
+  /// Returns the user id when [token] is a valid download token for
+  /// [documentId].
+  String verifyDownloadToken(String token, {required String documentId}) {
+    final JWT jwt;
+    try {
+      jwt = JWT.verify(token, _key, issuer: issuer, checkExpiresIn: false);
+    } on JWTException {
+      throw const AccessTokenException(AccessTokenError.invalid);
+    }
+    final payload = jwt.payload;
+    if (payload is! Map ||
+        payload['typ'] != 'download' ||
+        payload['doc'] != documentId) {
+      throw const AccessTokenException(AccessTokenError.invalid);
+    }
+    final exp = payload['exp'];
+    if (exp is! int || clock.now().millisecondsSinceEpoch ~/ 1000 >= exp) {
+      throw const AccessTokenException(AccessTokenError.expired);
+    }
+    final sub = payload['sub'];
+    if (sub is! String) {
+      throw const AccessTokenException(AccessTokenError.invalid);
+    }
+    return sub;
+  }
+
   /// A fresh opaque refresh token.
   String newRefreshToken() {
     final bytes = List<int>.generate(32, (_) => _random.nextInt(256));

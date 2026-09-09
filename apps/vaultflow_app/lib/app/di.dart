@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
 import 'package:vaultflow_app/features/lock/application/lock_settings_store.dart';
@@ -38,7 +39,24 @@ NotesUseCases notesUseCases(Ref ref) => NotesUseCases(
   vault: ref.watch(vaultRepositoryProvider),
 );
 
+@Riverpod(keepAlive: true)
+SearchUseCases searchUseCases(Ref ref) => SearchUseCases(
+  vault: ref.watch(vaultRepositoryProvider),
+  notes: ref.watch(notesRepositoryProvider),
+);
+
 // ------------------------------------------------------------ live queries
+
+/// Re-runs whenever the vault changes so results stay live while typing.
+@riverpod
+Stream<FolderContents> searchResults(Ref ref, String query) {
+  final db = ref.watch(databaseProvider);
+  final search = ref.watch(searchUseCasesProvider);
+  return db
+      .customSelect('SELECT 1', readsFrom: {db.folders, db.documents, db.notes})
+      .watch()
+      .asyncMap((_) async => (await search.search(query)).getOrThrow());
+}
 
 @riverpod
 Stream<FolderContents> folderContents(Ref ref, String? folderId) =>
@@ -90,6 +108,22 @@ Stream<int> outboxCount(Ref ref) =>
     ref.watch(outboxRepositoryProvider).watchPendingCount();
 
 // ------------------------------------------------------------ platform
+
+/// `kIsWeb`, as a provider so widget tests can exercise the web paths.
+@Riverpod(keepAlive: true)
+bool isWeb(Ref ref) => kIsWeb;
+
+/// Opens a URL with the OS (file viewer, browser download). Overridable so
+/// tests can record launches instead of hitting the platform channel.
+typedef UrlOpener = Future<bool> Function(Uri uri);
+
+@Riverpod(keepAlive: true)
+UrlOpener urlOpener(Ref ref) =>
+    (uri) => launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+      webOnlyWindowName: '_self',
+    );
 
 /// API origin; override with `--dart-define=VAULTFLOW_API_BASE_URL=...`.
 const String apiBaseUrl = String.fromEnvironment(

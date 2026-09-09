@@ -17,5 +17,6 @@ export 'src/errors/api_error_code.dart';
 export 'src/sync/changes_response.dart';
 export 'src/sync/push_request.dart';
 export 'src/sync/push_response.dart';
+export 'src/transfer/download_url_dtos.dart';
 export 'src/transfer/upload_session_dtos.dart';
 export 'src/vf_protocol_version.dart';

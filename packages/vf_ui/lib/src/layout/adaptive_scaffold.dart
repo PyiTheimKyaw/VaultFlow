@@ -43,6 +43,8 @@ class AdaptiveScaffold extends StatelessWidget {
     this.sidebarWidth = VfSizes.sidebarWidth,
     this.detailWidth = VfSizes.detailWidth,
     this.sizeClassOverride,
+    this.onSidebarResize,
+    this.onSidebarResizeEnd,
   }) : assert(destinations.length >= 2, 'need at least two destinations');
 
   final List<AdaptiveDestination> destinations;
@@ -64,6 +66,13 @@ class AdaptiveScaffold extends StatelessWidget {
 
   /// Forces a size class regardless of width; for tests and previews.
   final WindowSizeClass? sizeClassOverride;
+
+  /// When set, the expanded layout shows a drag handle between the sidebar
+  /// and the body and reports the requested width while dragging.
+  final ValueChanged<double>? onSidebarResize;
+
+  /// Called once when a resize drag ends (persist here).
+  final VoidCallback? onSidebarResizeEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +164,14 @@ class AdaptiveScaffold extends StatelessWidget {
               ),
             ),
           ),
-          const VerticalDivider(),
+          if (onSidebarResize == null)
+            const VerticalDivider()
+          else
+            _ResizeHandle(
+              width: sidebarWidth,
+              onResize: onSidebarResize!,
+              onEnd: onSidebarResizeEnd,
+            ),
           Expanded(child: body),
           if (detail != null) ...[
             const VerticalDivider(),
@@ -204,6 +220,69 @@ class _SidebarNav extends StatelessWidget {
               onTap: () => onDestinationSelected(i),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A divider that can be dragged horizontally to resize the sidebar.
+class _ResizeHandle extends StatefulWidget {
+  const _ResizeHandle({
+    required this.width,
+    required this.onResize,
+    this.onEnd,
+  });
+
+  final double width;
+  final ValueChanged<double> onResize;
+  final VoidCallback? onEnd;
+
+  @override
+  State<_ResizeHandle> createState() => _ResizeHandleState();
+}
+
+class _ResizeHandleState extends State<_ResizeHandle> {
+  bool _hover = false;
+  bool _dragging = false;
+  double _startWidth = 0;
+  double _startX = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final active = _hover || _dragging;
+    return Semantics(
+      label: 'Resize sidebar',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeLeftRight,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          key: const Key('sidebar-resize-handle'),
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (d) {
+            _startWidth = widget.width;
+            _startX = d.globalPosition.dx;
+            setState(() => _dragging = true);
+          },
+          onHorizontalDragUpdate: (d) =>
+              widget.onResize(_startWidth + d.globalPosition.dx - _startX),
+          onHorizontalDragEnd: (_) {
+            setState(() => _dragging = false);
+            widget.onEnd?.call();
+          },
+          onHorizontalDragCancel: () => setState(() => _dragging = false),
+          child: SizedBox(
+            width: 8,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                width: active ? 3 : 1,
+                color: active ? scheme.primary : scheme.outlineVariant,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

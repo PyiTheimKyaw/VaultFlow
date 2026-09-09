@@ -214,20 +214,34 @@ class PostgresSyncStore implements SyncStore {
         'limit': limit,
       },
     );
-    return result.map((r) {
-      final m = r.toColumnMap();
-      return ChangeRecord(
-        seq: m['seq'] as int,
-        userId: m['user_id'] as String,
-        deviceId: m['device_id'] as String,
-        entityType: EntityType.fromWire(m['entity_type'] as String),
-        entityId: m['entity_id'] as String,
-        op: SyncOp.fromWire(m['op'] as String),
-        version: m['version'] as int,
-        payload: (m['payload'] as Map).cast<String, Object?>(),
-        createdAt: (m['created_at'] as DateTime).toUtc(),
-      );
-    }).toList();
+    return result.map((r) => _record(r.toColumnMap())).toList();
+  }
+
+  @override
+  Future<ChangeRecord?> latestChange(String userId) async {
+    final result = await _session.execute(
+      Sql.named(
+        'SELECT * FROM changes WHERE user_id = @user '
+        'ORDER BY seq DESC LIMIT 1',
+      ),
+      parameters: {'user': userId},
+    );
+    if (result.isEmpty) return null;
+    return _record(result.first.toColumnMap());
+  }
+
+  static ChangeRecord _record(Map<String, dynamic> m) {
+    return ChangeRecord(
+      seq: m['seq'] as int,
+      userId: m['user_id'] as String,
+      deviceId: m['device_id'] as String,
+      entityType: EntityType.fromWire(m['entity_type'] as String),
+      entityId: m['entity_id'] as String,
+      op: SyncOp.fromWire(m['op'] as String),
+      version: m['version'] as int,
+      payload: (m['payload'] as Map).cast<String, Object?>(),
+      createdAt: (m['created_at'] as DateTime).toUtc(),
+    );
   }
 
   @override

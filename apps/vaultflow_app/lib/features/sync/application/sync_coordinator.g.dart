@@ -95,7 +95,7 @@ final class SyncCoordinatorProvider
   }
 }
 
-String _$syncCoordinatorHash() => r'f8162eef4b6137df42e493ac7b8902642210381b';
+String _$syncCoordinatorHash() => r'b33a6562fbe4670c672200002f74cd2a177e4481';
 
 /// Owns the engine and scheduler for the signed-in session: created on
 /// sign-in, torn down on sign-out, kicked on app resume.

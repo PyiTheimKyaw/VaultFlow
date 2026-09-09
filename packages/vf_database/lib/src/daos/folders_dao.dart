@@ -25,6 +25,23 @@ class FoldersDao extends DatabaseAccessor<VaultFlowDatabase>
   Future<FolderRow?> getById(String id) =>
       (select(folders)..where((f) => f.id.equals(id))).getSingleOrNull();
 
+  /// Case-insensitive substring match on the name; prefix matches first.
+  Future<List<FolderRow>> searchByName(String query, {int limit = 50}) {
+    final needle = escapeLike(query);
+    return (select(folders)
+          ..where(
+            (f) =>
+                f.deletedAt.isNull() &
+                f.name.like('%$needle%', escapeChar: r'\'),
+          )
+          ..orderBy([
+            (f) => OrderingTerm.desc(f.name.like('$needle%', escapeChar: r'\')),
+            (f) => OrderingTerm.asc(f.name.lower()),
+          ])
+          ..limit(limit))
+        .get();
+  }
+
   Future<List<FolderRow>> getChildren(String? parentId) =>
       (_selectLive()..where(
             (f) => parentId == null
@@ -62,3 +79,8 @@ class FoldersDao extends DatabaseAccessor<VaultFlowDatabase>
     return result;
   }
 }
+
+/// Escapes `%` and `_` so user text is matched literally by `LIKE`.
+/// SQLite's LIKE is case-insensitive for ASCII by default.
+String escapeLike(String raw) =>
+    raw.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');

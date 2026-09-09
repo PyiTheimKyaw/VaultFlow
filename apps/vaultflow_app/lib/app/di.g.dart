@@ -275,6 +275,131 @@ final class NotesUseCasesProvider
 
 String _$notesUseCasesHash() => r'5a88382d3d350cf62addee30d452f150972f9ba4';
 
+@ProviderFor(searchUseCases)
+final searchUseCasesProvider = SearchUseCasesProvider._();
+
+final class SearchUseCasesProvider
+    extends $FunctionalProvider<SearchUseCases, SearchUseCases, SearchUseCases>
+    with $Provider<SearchUseCases> {
+  SearchUseCasesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'searchUseCasesProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$searchUseCasesHash();
+
+  @$internal
+  @override
+  $ProviderElement<SearchUseCases> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  SearchUseCases create(Ref ref) {
+    return searchUseCases(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SearchUseCases value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SearchUseCases>(value),
+    );
+  }
+}
+
+String _$searchUseCasesHash() => r'b96cb8e40f2845fb3793e432b1be47a36926dc5f';
+
+/// Re-runs whenever the vault changes so results stay live while typing.
+
+@ProviderFor(searchResults)
+final searchResultsProvider = SearchResultsFamily._();
+
+/// Re-runs whenever the vault changes so results stay live while typing.
+
+final class SearchResultsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<FolderContents>,
+          FolderContents,
+          Stream<FolderContents>
+        >
+    with $FutureModifier<FolderContents>, $StreamProvider<FolderContents> {
+  /// Re-runs whenever the vault changes so results stay live while typing.
+  SearchResultsProvider._({
+    required SearchResultsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'searchResultsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$searchResultsHash();
+
+  @override
+  String toString() {
+    return r'searchResultsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<FolderContents> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<FolderContents> create(Ref ref) {
+    final argument = this.argument as String;
+    return searchResults(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SearchResultsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$searchResultsHash() => r'f289de3c7ce4e1731caa3a40c266b19ffdfd5756';
+
+/// Re-runs whenever the vault changes so results stay live while typing.
+
+final class SearchResultsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<FolderContents>, String> {
+  SearchResultsFamily._()
+    : super(
+        retry: null,
+        name: r'searchResultsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Re-runs whenever the vault changes so results stay live while typing.
+
+  SearchResultsProvider call(String query) =>
+      SearchResultsProvider._(argument: query, from: this);
+
+  @override
+  String toString() => r'searchResultsProvider';
+}
+
 @ProviderFor(folderContents)
 final folderContentsProvider = FolderContentsFamily._();
 
@@ -797,6 +922,92 @@ final class OutboxCountProvider
 }
 
 String _$outboxCountHash() => r'ed5e9b9a9b7aa88dafa4c3faa8a1feff93fe3fbe';
+
+/// `kIsWeb`, as a provider so widget tests can exercise the web paths.
+
+@ProviderFor(isWeb)
+final isWebProvider = IsWebProvider._();
+
+/// `kIsWeb`, as a provider so widget tests can exercise the web paths.
+
+final class IsWebProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// `kIsWeb`, as a provider so widget tests can exercise the web paths.
+  IsWebProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'isWebProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$isWebHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return isWeb(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$isWebHash() => r'096c0b10b8c13d276152c8cd850ef60542622497';
+
+@ProviderFor(urlOpener)
+final urlOpenerProvider = UrlOpenerProvider._();
+
+final class UrlOpenerProvider
+    extends $FunctionalProvider<UrlOpener, UrlOpener, UrlOpener>
+    with $Provider<UrlOpener> {
+  UrlOpenerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'urlOpenerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$urlOpenerHash();
+
+  @$internal
+  @override
+  $ProviderElement<UrlOpener> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  UrlOpener create(Ref ref) {
+    return urlOpener(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(UrlOpener value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<UrlOpener>(value),
+    );
+  }
+}
+
+String _$urlOpenerHash() => r'f1e1e228ab20b32a3bf305cdd7830bcee10013a7';
 
 @ProviderFor(secureStore)
 final secureStoreProvider = SecureStoreProvider._();

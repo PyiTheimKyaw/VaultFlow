@@ -32,6 +32,7 @@ class ServerContext {
     required this.storage,
     required this.uploads,
     required this.content,
+    this.clock = const SystemClock(),
     this.database,
   });
 
@@ -126,6 +127,7 @@ class ServerContext {
   final StorageAdapter storage;
   final UploadService uploads;
   final ContentService content;
+  final Clock clock;
 }
 
 ServerContext? _global;

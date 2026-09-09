@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/features/vault/application/vault_view_mode.dart';
+import 'package:vaultflow_app/features/vault/presentation/drag_drop.dart';
+import 'package:vaultflow_app/features/vault/presentation/vault_item_tile.dart';
 import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_ui/vf_ui.dart';
 
@@ -24,13 +26,17 @@ class FolderTree extends ConsumerWidget {
     }
 
     final rows = <Widget>[
-      _Row(
-        key: const Key('tree-root'),
-        icon: Icons.home_outlined,
-        label: 'All files',
-        depth: 0,
-        selected: selectedFolderId == null,
-        onTap: () => context.go(AppRoutes.vault),
+      FolderDropTarget(
+        folderId: null,
+        builder: (context, hovering) => _Row(
+          key: const Key('tree-root'),
+          icon: Icons.home_outlined,
+          label: 'All files',
+          depth: 0,
+          selected: selectedFolderId == null,
+          highlighted: hovering,
+          onTap: () => context.go(AppRoutes.vault),
+        ),
       ),
     ];
 
@@ -39,17 +45,26 @@ class FolderTree extends ConsumerWidget {
         final hasChildren = byParent.containsKey(f.id);
         final isOpen = expanded.contains(f.id);
         rows.add(
-          _Row(
-            key: Key('tree-${f.id}'),
-            icon: isOpen ? Icons.folder_open_outlined : Icons.folder_outlined,
-            label: f.name,
-            depth: depth + 1,
-            selected: selectedFolderId == f.id,
-            expandable: hasChildren,
-            expanded: isOpen,
-            onToggle: () =>
-                ref.read(expandedFoldersProvider.notifier).toggle(f.id),
-            onTap: () => context.go(AppRoutes.folder(f.id)),
+          FolderDropTarget(
+            folderId: f.id,
+            builder: (context, hovering) => _Row(
+              key: Key('tree-${f.id}'),
+              icon: isOpen ? Icons.folder_open_outlined : Icons.folder_outlined,
+              label: f.name,
+              depth: depth + 1,
+              selected: selectedFolderId == f.id,
+              highlighted: hovering,
+              expandable: hasChildren,
+              expanded: isOpen,
+              onToggle: () =>
+                  ref.read(expandedFoldersProvider.notifier).toggle(f.id),
+              onTap: () => context.go(AppRoutes.folder(f.id)),
+              onContextMenu: (position) => VaultItemActions(
+                context,
+                ref,
+                VaultItem.folder(f),
+              ).showContextMenu(position),
+            ),
           ),
         );
         if (hasChildren && isOpen) visit(f.id, depth + 1);
@@ -74,10 +89,16 @@ class _Row extends StatelessWidget {
     required this.selected,
     required this.onTap,
     super.key,
+    this.highlighted = false,
     this.expandable = false,
     this.expanded = false,
     this.onToggle,
+    this.onContextMenu,
   });
+
+  /// True while a drag hovers over this row.
+  final bool highlighted;
+  final ValueChanged<Offset>? onContextMenu;
 
   final IconData icon;
   final String label;
@@ -91,36 +112,46 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      selected: selected,
-      selectedTileColor: scheme.secondaryContainer,
-      contentPadding: EdgeInsets.only(
-        left: VfSpacing.sm + depth * VfSpacing.lg,
-        right: VfSpacing.sm,
-      ),
-      leading: SizedBox(
-        width: 48,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (expandable)
-              InkWell(
-                onTap: onToggle,
-                borderRadius: BorderRadius.circular(VfRadius.sm),
-                child: Icon(
-                  expanded ? Icons.expand_more : Icons.chevron_right,
-                  size: 20,
-                ),
-              )
-            else
-              const SizedBox(width: 20),
-            const SizedBox(width: VfSpacing.xs),
-            Icon(icon, size: 20),
-          ],
+    return GestureDetector(
+      onSecondaryTapUp: onContextMenu == null
+          ? null
+          : (d) => onContextMenu!(d.globalPosition),
+      child: ListTile(
+        selected: selected,
+        selectedTileColor: scheme.secondaryContainer,
+        tileColor: highlighted ? scheme.tertiaryContainer : null,
+        contentPadding: EdgeInsets.only(
+          left: VfSpacing.sm + depth * VfSpacing.lg,
+          right: VfSpacing.sm,
         ),
+        leading: SizedBox(
+          width: 48,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (expandable)
+                Semantics(
+                  button: true,
+                  label: expanded ? 'Collapse $label' : 'Expand $label',
+                  child: InkWell(
+                    onTap: onToggle,
+                    borderRadius: BorderRadius.circular(VfRadius.sm),
+                    child: Icon(
+                      expanded ? Icons.expand_more : Icons.chevron_right,
+                      size: 20,
+                    ),
+                  ),
+                )
+              else
+                const SizedBox(width: 20),
+              const SizedBox(width: VfSpacing.xs),
+              Icon(icon, size: 20),
+            ],
+          ),
+        ),
+        title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        onTap: onTap,
       ),
-      title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-      onTap: onTap,
     );
   }
 }

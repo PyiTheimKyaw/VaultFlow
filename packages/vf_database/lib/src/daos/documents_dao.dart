@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:vf_database/src/daos/folders_dao.dart' show escapeLike;
 import 'package:vf_database/src/database.dart';
 
 part 'documents_dao.g.dart';
@@ -20,6 +21,23 @@ class DocumentsDao extends DatabaseAccessor<VaultFlowDatabase>
                 : d.folderId.equals(folderId),
           ))
           .get();
+
+  /// Case-insensitive substring match on the name; prefix matches first.
+  Future<List<DocumentRow>> searchByName(String query, {int limit = 50}) {
+    final needle = escapeLike(query);
+    return (select(documents)
+          ..where(
+            (d) =>
+                d.deletedAt.isNull() &
+                d.name.like('%$needle%', escapeChar: r'\'),
+          )
+          ..orderBy([
+            (d) => OrderingTerm.desc(d.name.like('$needle%', escapeChar: r'\')),
+            (d) => OrderingTerm.asc(d.name.lower()),
+          ])
+          ..limit(limit))
+        .get();
+  }
 
   /// Live documents anywhere under the given folder ids.
   Future<List<DocumentRow>> getInAny(Iterable<String?> folderIds) {

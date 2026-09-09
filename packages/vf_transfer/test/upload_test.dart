@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vf_core/vf_core.dart';
 import 'package:vf_domain/vf_domain.dart';
+import 'package:vf_transfer/vf_transfer.dart';
 
 import 'helpers.dart';
 
@@ -175,5 +178,73 @@ void main() {
     final session = await a.session(sessionId);
     expect(session.state, 'failed');
     expect(session.lastError, contains('deleted'));
+  });
+
+  test('in-memory content uploads without a file (web)', () async {
+    final bytes = Uint8List.fromList(
+      List<int>.generate(200 * 1024, (i) => (i * 13) % 256),
+    );
+    final hash = Hasher.ofBytes(bytes);
+    final sessionId = VfId.next();
+    final doc = Document(
+      id: VfId.next(),
+      name: 'browser.bin',
+      mimeType: 'application/octet-stream',
+      sizeBytes: bytes.length,
+      sha256: hash,
+      createdAt: DateTime.utc(2026, 9, 9),
+      updatedAt: DateTime.utc(2026, 9, 9),
+    );
+    await a.vault.createDocument(doc, dependsOnTransfer: sessionId);
+    await a.engine.enqueueUpload(
+      documentId: doc.id,
+      localPath: '${TransferEngine.memoryPathPrefix}browser.bin',
+      totalBytes: bytes.length,
+      sha256: hash,
+      sessionId: sessionId,
+      bytes: bytes,
+    );
+    await a.engine.drain();
+    expect((await a.session(sessionId)).state, 'completed');
+    expect(server.storage.partWrites.length, 4);
+    final stored = (await a.vault.getDocument(doc.id))!;
+    expect(await server.uploads.ownsBlob(a.userId, stored.storageKey!), isTrue);
+  });
+
+  test('a reload loses in-memory content: recover parks the session', () async {
+    final bytes = Uint8List.fromList(List<int>.filled(1000, 7));
+    final sessionId = VfId.next();
+    final doc = Document(
+      id: VfId.next(),
+      name: 'lost.bin',
+      mimeType: 'application/octet-stream',
+      sizeBytes: bytes.length,
+      sha256: Hasher.ofBytes(bytes),
+      createdAt: DateTime.utc(2026, 9, 9),
+      updatedAt: DateTime.utc(2026, 9, 9),
+    );
+    await a.vault.createDocument(doc, dependsOnTransfer: sessionId);
+    // Freeze the first part so the upload is still running at "reload".
+    final gate = Completer<void>();
+    server.storage.beforePart = (_) => gate.future;
+    await a.engine.enqueueUpload(
+      documentId: doc.id,
+      localPath: '${TransferEngine.memoryPathPrefix}lost.bin',
+      totalBytes: bytes.length,
+      sha256: doc.sha256,
+      sessionId: sessionId,
+      bytes: bytes,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    a.engine.dispose();
+    server.storage.beforePart = null;
+    gate.complete();
+
+    final b = await Device.create(server, name: 'B', db: a.db);
+    addTearDown(() => b.close(keepDb: true));
+    await b.engine.drain();
+    final session = await b.session(sessionId);
+    expect(session.state, 'failed');
+    expect(session.lastError, contains('import it again'));
   });
 }

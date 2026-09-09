@@ -8,25 +8,22 @@ part of 'vault_view_mode.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// List/grid toggle for the folder view. In-memory for now; Phase 6 persists
-/// it in `app_settings`.
+/// List/grid toggle for the folder view, persisted in `app_settings`.
 
 @ProviderFor(VaultViewModeController)
 final vaultViewModeControllerProvider = VaultViewModeControllerProvider._();
 
-/// List/grid toggle for the folder view. In-memory for now; Phase 6 persists
-/// it in `app_settings`.
+/// List/grid toggle for the folder view, persisted in `app_settings`.
 final class VaultViewModeControllerProvider
     extends $NotifierProvider<VaultViewModeController, VaultViewMode> {
-  /// List/grid toggle for the folder view. In-memory for now; Phase 6 persists
-  /// it in `app_settings`.
+  /// List/grid toggle for the folder view, persisted in `app_settings`.
   VaultViewModeControllerProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'vaultViewModeControllerProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -48,10 +45,9 @@ final class VaultViewModeControllerProvider
 }
 
 String _$vaultViewModeControllerHash() =>
-    r'59d2c64f9c743aa658477364ab74b3b663d87c7e';
+    r'1d2847aaf3050bdd9146397e2a34cf56a6c0fb55';
 
-/// List/grid toggle for the folder view. In-memory for now; Phase 6 persists
-/// it in `app_settings`.
+/// List/grid toggle for the folder view, persisted in `app_settings`.
 
 abstract class _$VaultViewModeController extends $Notifier<VaultViewMode> {
   VaultViewMode build();
@@ -122,6 +118,64 @@ abstract class _$ExpandedFolders extends $Notifier<Set<String>> {
             as $ClassProviderElement<
               AnyNotifier<Set<String>, Set<String>>,
               Set<String>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// Width of the persistent sidebar on expanded layouts, persisted.
+
+@ProviderFor(SidebarWidth)
+final sidebarWidthProvider = SidebarWidthProvider._();
+
+/// Width of the persistent sidebar on expanded layouts, persisted.
+final class SidebarWidthProvider
+    extends $NotifierProvider<SidebarWidth, double> {
+  /// Width of the persistent sidebar on expanded layouts, persisted.
+  SidebarWidthProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'sidebarWidthProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$sidebarWidthHash();
+
+  @$internal
+  @override
+  SidebarWidth create() => SidebarWidth();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(double value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<double>(value),
+    );
+  }
+}
+
+String _$sidebarWidthHash() => r'8d5d1fedfbe5ee5dbbffeb3407a226a6a0c7facb';
+
+/// Width of the persistent sidebar on expanded layouts, persisted.
+
+abstract class _$SidebarWidth extends $Notifier<double> {
+  double build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<double, double>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<double, double>,
+              double,
               Object?,
               Object?
             >;

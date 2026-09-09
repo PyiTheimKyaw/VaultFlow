@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vf_core/vf_core.dart';
@@ -147,5 +149,52 @@ void main() {
     expect(pushed.getOrThrow().results.single.newVersion, 1);
     final pulled = await client.changes(since: 7, excludeDeviceId: 'd');
     expect(pulled.getOrThrow().hasMore, isFalse);
+  });
+
+  test('createDownloadUrl parses the link and resolves it', () async {
+    adapter.on(
+      'POST',
+      '/documents/doc-1/download-url',
+      (_) => const FakeResponse(200, {
+        'url': '/documents/doc-1/content?token=abc',
+        'expires_at': '2026-09-09T10:00:00.000Z',
+      }),
+    );
+    final result = await client.createDownloadUrl('doc-1');
+    final link = result.getOrThrow();
+    expect(link.url, '/documents/doc-1/content?token=abc');
+    expect(
+      client.absolute(link.url).toString(),
+      'https://api.test/documents/doc-1/content?token=abc',
+    );
+  });
+
+  test('syncEvents yields change sequences and ignores pings', () async {
+    adapter.on('GET', '/sync/events', (o) {
+      expect(o.queryParameters['exclude_device'], 'd');
+      return FakeResponse.stream(
+        200,
+        Stream.fromIterable([
+          'retry: 3000\n\n',
+          ': ping\n\n',
+          'event: change\ndata: {"seq": 4}\n\n',
+          'event: change\n',
+          'data: {"seq": 9}\n\n',
+        ]).map((s) => Uint8List.fromList(s.codeUnits)),
+        headers: {'content-type': 'text/event-stream'},
+      );
+    });
+    final seqs = await client.syncEvents(excludeDeviceId: 'd').toList();
+    expect(seqs, [4, 9]);
+  });
+
+  test('syncEvents surfaces connection errors as failures', () async {
+    adapter.on('GET', '/sync/events', (o) {
+      throw DioException.connectionError(requestOptions: o, reason: 'down');
+    });
+    await expectLater(
+      client.syncEvents().toList(),
+      throwsA(isA<NetworkFailure>()),
+    );
   });
 }

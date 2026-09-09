@@ -10,6 +10,7 @@ import 'package:vaultflow_app/features/conflicts/presentation/conflicts_page.dar
 import 'package:vaultflow_app/features/lock/presentation/lock_settings_page.dart';
 import 'package:vaultflow_app/features/notes/presentation/note_editor_page.dart';
 import 'package:vaultflow_app/features/notes/presentation/notes_page.dart';
+import 'package:vaultflow_app/features/search/presentation/search_page.dart';
 import 'package:vaultflow_app/features/settings/presentation/outbox_debug_page.dart';
 import 'package:vaultflow_app/features/settings/presentation/settings_page.dart';
 import 'package:vaultflow_app/features/transfers/presentation/transfers_page.dart';
@@ -80,6 +81,15 @@ GoRouter router(Ref ref) {
                     ),
                   ),
                 ],
+              ),
+              // Lives in the vault branch so opening a hit keeps the
+              // vault stack and the Vault destination stays selected.
+              GoRoute(
+                path: AppRoutes.search,
+                name: AppRoutes.searchName,
+                builder: (context, state) => SearchPage(
+                  query: state.uri.queryParameters[AppRoutes.searchParam] ?? '',
+                ),
               ),
             ],
           ),

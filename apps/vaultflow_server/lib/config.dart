@@ -16,6 +16,8 @@ class ServerConfig {
     this.s3,
     this.uploadSessionTtl = const Duration(hours: 24),
     this.maxChunkSize = 8 * 1024 * 1024,
+    this.downloadLinkTtl = const Duration(minutes: 5),
+    this.eventsMaxAge = const Duration(minutes: 5),
   });
 
   factory ServerConfig.fromEnvironment([Map<String, String>? env]) {
@@ -55,6 +57,8 @@ class ServerConfig {
           : null,
       uploadSessionTtl: Duration(hours: intOr('UPLOAD_SESSION_TTL_HOURS', 24)),
       maxChunkSize: intOr('MAX_CHUNK_SIZE', 8 * 1024 * 1024),
+      downloadLinkTtl: Duration(minutes: intOr('DOWNLOAD_LINK_TTL_MINUTES', 5)),
+      eventsMaxAge: Duration(minutes: intOr('EVENTS_MAX_AGE_MINUTES', 5)),
       databaseUrl: (e['DATABASE_URL'] ?? '').isEmpty ? null : e['DATABASE_URL'],
       accessTokenTtl: Duration(minutes: intOr('ACCESS_TOKEN_TTL_MINUTES', 15)),
       refreshTokenTtl: Duration(days: intOr('REFRESH_TOKEN_TTL_DAYS', 30)),
@@ -83,6 +87,13 @@ class ServerConfig {
 
   /// Largest chunk the server accepts in one request.
   final int maxChunkSize;
+
+  /// Lifetime of a signed browser download link.
+  final Duration downloadLinkTtl;
+
+  /// How long one `/sync/events` connection stays open before the client
+  /// must reconnect.
+  final Duration eventsMaxAge;
 
   bool get usesPostgres => databaseUrl != null;
 }

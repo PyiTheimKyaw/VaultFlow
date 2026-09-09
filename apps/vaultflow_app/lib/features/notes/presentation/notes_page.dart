@@ -5,6 +5,9 @@ import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/shared/result_feedback.dart';
+import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
+import 'package:vaultflow_app/features/vault/presentation/drag_drop.dart'
+    show usesMouseDrag;
 import 'package:vf_ui/vf_ui.dart';
 
 /// All notes, most recently edited first.
@@ -45,37 +48,48 @@ class NotesPage extends ConsumerWidget {
                     'Notes are Markdown, autosave as you type and work '
                     'fully offline.',
               )
-            : ListView.separated(
-                key: const Key('notes-list'),
-                padding: const EdgeInsets.only(top: VfSpacing.sm, bottom: 88),
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const Divider(indent: 16),
-                itemBuilder: (context, i) {
-                  final note = list[i];
-                  return ListTile(
-                    key: Key('note-row-${note.id}'),
-                    title: Text(
-                      note.title.isEmpty ? 'Untitled note' : note.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      note.preview.isEmpty
-                          ? formatRelative(note.updatedAt)
-                          : '${note.preview} · '
-                                '${formatRelative(note.updatedAt)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: SyncStatusBadge(
-                      status: badgeFor(note.syncStatus),
-                      compact: true,
-                    ),
-                    onTap: () => context.go(AppRoutes.note(note.id)),
-                  );
-                },
+            : _refreshable(
+                ref,
+                ListView.separated(
+                  key: const Key('notes-list'),
+                  padding: const EdgeInsets.only(top: VfSpacing.sm, bottom: 88),
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => const Divider(indent: 16),
+                  itemBuilder: (context, i) {
+                    final note = list[i];
+                    return ListTile(
+                      key: Key('note-row-${note.id}'),
+                      title: Text(
+                        note.title.isEmpty ? 'Untitled note' : note.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        note.preview.isEmpty
+                            ? formatRelative(note.updatedAt)
+                            : '${note.preview} · '
+                                  '${formatRelative(note.updatedAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: SyncStatusBadge(
+                        status: badgeFor(note.syncStatus),
+                        compact: true,
+                      ),
+                      onTap: () => context.go(AppRoutes.note(note.id)),
+                    );
+                  },
+                ),
               ),
       ),
     );
   }
+
+  /// Pull-to-refresh syncs on touch platforms.
+  Widget _refreshable(WidgetRef ref, Widget list) => usesMouseDrag
+      ? list
+      : RefreshIndicator(
+          onRefresh: () => ref.read(syncCoordinatorProvider.notifier).syncNow(),
+          child: list,
+        );
 }

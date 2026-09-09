@@ -172,9 +172,41 @@ cd packages/vf_transfer
 VAULTFLOW_LIVE_API=http://localhost:8080 flutter test test/live
 ```
 
-## 8. Phase 6 — adaptive UX polish (pending)
+## 8. Phase 6 — adaptive UX and platform integration
 
-To be written when Phase 6 lands.
+1. Search: tap the magnifier (or ⌘F / Ctrl+F). Type part of a folder or file
+   name and a word from a note body; both appear grouped. The URL becomes
+   `/search?q=…` (reload it on web). Open a hit; the Vault tab stays selected.
+2. Multi-select: on desktop ⌘-click (Ctrl-click) two items, or long-press on
+   touch. The toolbar becomes "N selected" with All / Move / Delete. Esc clears.
+   Delete with the selection bar, then with the Delete key.
+3. Drag and drop: drag a file onto a folder row, onto a folder in the sidebar
+   tree, and onto a breadcrumb entry; the target highlights and "Moved 1 item"
+   appears. On touch, long-press then move. Drag a selected item to move the
+   whole selection.
+4. OS drop (desktop, web): drag a file from Finder/Explorer onto the vault; a
+   "Drop files to import here" overlay shows and the file is imported into the
+   open folder and uploaded.
+5. Right-click a row (desktop/web): Rename / Move / Delete menu. F2 renames a
+   single selected item.
+6. Shortcuts: ⌘N new note (works from any tab), ⌘⇧N new folder in the current
+   folder, ⌘I import, ⌘A select all.
+7. Resizable sidebar: drag the divider between the tree and the content; the
+   width survives a restart. Toggle list/grid: it survives a restart too.
+8. Pull-to-refresh (phone): pull down the vault or notes list; the sync badge
+   spins.
+9. Realtime: with two devices signed in, edit on one; within ~2 s the other
+   pulls without waiting for the 15-minute timer (server log: `sync triggered
+   reason=event`). Kill the server: the client reconnects with backoff.
+10. Web download: on the web build, open a file's details and tap Download;
+    the browser saves it (the link is valid for 5 minutes and only for that
+    file). Web upload: import a file; it uploads from memory; reload mid-way
+    and the transfer is parked as failed with "import it again".
+11. PWA: in Chrome, "Install VaultFlow" from the address bar; it opens
+    standalone at `/vault`. Deep link: open `/notes/<id>` signed out, log in,
+    you land on that note.
+12. Android share sheet: from Files/Photos, Share → VaultFlow. The app opens
+    and "Imported <name>" appears; the file is in the vault root and uploads.
 
 ## 9. Phase 7 — production hardening (pending)
 

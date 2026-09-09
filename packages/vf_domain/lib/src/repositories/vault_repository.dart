@@ -22,6 +22,11 @@ abstract interface class VaultRepository {
   /// Live children of [folderId] (`null` for the root), sorted by name.
   Stream<FolderContents> watchContents(String? folderId);
 
+  /// Live folders and documents whose name contains [query]
+  /// (case-insensitive), best matches first. Notes are searched through
+  /// `NotesRepository.search`.
+  Future<FolderContents> searchByName(String query, {int limit = 50});
+
   Future<Document?> getDocument(String id);
 
   Stream<Document?> watchDocument(String id);

@@ -1,0 +1,17 @@
+{
+  "@@locale": "en",
+  "appTitle": "VaultFlow",
+  "navVault": "Vault",
+  "navNotes": "Notes",
+  "navTransfers": "Transfers",
+  "navSettings": "Settings",
+  "titleSearch": "Search",
+  "titleSyncQueue": "Sync queue",
+  "titleVaultLock": "Vault lock",
+  "titleConflicts": "Conflicts",
+  "searchTooltip": "Search (⌘F)",
+  "selectedCount": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@selectedCount": {
+    "placeholders": {"count": {"type": "int"}}
+  }
+}

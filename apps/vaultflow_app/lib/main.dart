@@ -6,6 +6,7 @@ import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
 import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
+import 'package:vaultflow_app/features/vault/application/share_intent.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_database/vf_database.dart';
 import 'package:vf_security/vf_security.dart';
@@ -43,6 +44,7 @@ Future<void> main() async {
   );
   await container.read(appLockControllerProvider).initialize();
   await container.read(transferEngineProvider).recover();
+  await container.read(shareIntentImporterProvider)?.start();
 
   runApp(
     UncontrolledProviderScope(

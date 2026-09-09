@@ -45,6 +45,7 @@ ServerContext testContext({FakeClock? clock}) {
     store: store,
     hasher: hasher,
     tokens: tokens,
+    clock: c,
     auth: AuthService(
       store: store,
       hasher: hasher,

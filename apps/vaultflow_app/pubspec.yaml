@@ -12,9 +12,12 @@ resolution: workspace
 dependencies:
   crypto: ^3.0.7
   cupertino_icons: ^1.0.8
+  desktop_drop: ^0.8.4
   drift: ^2.34.4
   file_picker: ^12.2.0
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   flutter_markdown_plus: ^1.0.12
   flutter_riverpod: ^3.4.3
@@ -56,4 +59,5 @@ dev_dependencies:
   riverpod_generator: ^4.0.9
 
 flutter:
+  generate: true
   uses-material-design: true

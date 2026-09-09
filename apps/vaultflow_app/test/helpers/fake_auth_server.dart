@@ -13,7 +13,20 @@ class FakeAuthServer {
         logouts++;
         return const FakeResponse(204);
       })
-      ..on('GET', ApiPaths.authMe, _me);
+      ..on('GET', ApiPaths.authMe, _me)
+      ..on('POST', '/documents/*', _downloadUrl);
+  }
+
+  /// Ids of documents a download link was issued for.
+  final List<String> downloadLinks = [];
+
+  FakeResponse _downloadUrl(RequestOptions o) {
+    final id = o.path.split('/')[2];
+    downloadLinks.add(id);
+    return FakeResponse(200, {
+      'url': '/documents/$id/content?token=signed-$id',
+      'expires_at': '2026-09-07T09:05:00.000Z',
+    });
   }
 
   final adapter = FakeAdapter();

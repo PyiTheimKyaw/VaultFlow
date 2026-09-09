@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -127,6 +129,72 @@ class ApiClient {
             _dio.post<Map<String, Object?>>(ApiPaths.uploadComplete(uploadId)),
         UploadCompleteResponse.fromJson,
       );
+
+  /// A short-lived link a browser can open directly (web downloads).
+  Future<Result<DownloadUrlResponse>> createDownloadUrl(String documentId) =>
+      _run(
+        () => _dio.post<Map<String, Object?>>(
+          ApiPaths.documentDownloadUrl(documentId),
+        ),
+        DownloadUrlResponse.fromJson,
+      );
+
+  /// Absolute form of a [DownloadUrlResponse.url] for this client's origin.
+  Uri absolute(String path) => Uri.parse(_dio.options.baseUrl).resolve(path);
+
+  /// Server-sent events from `GET /sync/events`: each element is the newest
+  /// change sequence. Completes when the server closes the stream; the
+  /// caller reconnects. Not available on web (the browser adapter buffers
+  /// responses).
+  Stream<int> syncEvents({String? excludeDeviceId, CancelToken? cancelToken}) {
+    final controller = StreamController<int>();
+    Future<void> run() async {
+      try {
+        final response = await _dio.get<ResponseBody>(
+          ApiPaths.syncEvents,
+          queryParameters: {'exclude_device': ?excludeDeviceId},
+          options: Options(
+            responseType: ResponseType.stream,
+            receiveTimeout: Duration.zero,
+            headers: {'Accept': 'text/event-stream'},
+          ),
+          cancelToken: cancelToken,
+        );
+        String? event;
+        final data = StringBuffer();
+        await for (final line
+            in response.data!.stream
+                .cast<List<int>>()
+                .transform(utf8.decoder)
+                .transform(const LineSplitter())) {
+          if (line.isEmpty) {
+            if (event == 'change' && data.isNotEmpty) {
+              final seq = (jsonDecode(data.toString()) as Map)['seq'];
+              if (seq is int) controller.add(seq);
+            }
+            event = null;
+            data.clear();
+          } else if (line.startsWith('event:')) {
+            event = line.substring(6).trim();
+          } else if (line.startsWith('data:')) {
+            data.write(line.substring(5).trim());
+          }
+          // Comments (`: ping`) and `retry:` are ignored.
+        }
+      } on DioException catch (e, stackTrace) {
+        if (!controller.isClosed) {
+          controller.addError(mapDioException(e, stackTrace));
+        }
+      } on Object catch (e, stackTrace) {
+        if (!controller.isClosed) controller.addError(e, stackTrace);
+      } finally {
+        await controller.close();
+      }
+    }
+
+    controller.onListen = () => unawaited(run());
+    return controller.stream;
+  }
 
   /// Opens a ranged download starting at [offset]. The caller drains
   /// [ContentDownload.stream]; the response's ETag is the document's sha256.

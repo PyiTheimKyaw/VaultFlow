@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io' show File;
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
@@ -48,8 +49,8 @@ class ImportSource {
 /// registers them as documents in the current folder.
 ///
 /// Web has no writable filesystem, so the file is hashed and registered with
-/// `cacheState = none`; its bytes are uploaded directly once transfers land
-/// in Phase 5.
+/// `cacheState = none` and its bytes are uploaded straight from memory
+/// (an upload interrupted by a reload must be re-imported).
 final class DocumentImporter {
   const DocumentImporter({
     required this.useCases,
@@ -98,10 +99,37 @@ final class DocumentImporter {
 
     try {
       if (isWeb) {
+        // No filesystem: keep the bytes in memory for the upload.
+        final buffer = BytesBuilder(copy: false);
         await for (final chunk in source.bytes) {
           hasher.add(chunk);
           size += chunk.length;
+          buffer.add(chunk);
         }
+        hasher.close();
+        final hash = digest.value.toString();
+        final engine = transfers;
+        final sessionId = engine == null ? null : VfId.next();
+        final result = await useCases.importDocument(
+          name: source.name,
+          mimeType: mimeTypeFor(source.name),
+          sizeBytes: size,
+          sha256: hash,
+          folderId: folderId,
+          dependsOnTransfer: sessionId,
+        );
+        if (result case Ok(:final value)
+            when engine != null && sessionId != null) {
+          await engine.enqueueUpload(
+            documentId: value.id,
+            localPath: '${TransferEngine.memoryPathPrefix}${source.name}',
+            totalBytes: size,
+            sha256: hash,
+            sessionId: sessionId,
+            bytes: buffer.takeBytes(),
+          );
+        }
+        return result;
       } else {
         final root = await cacheDirectory.cacheRoot();
         final tmp = File(
@@ -154,14 +182,6 @@ final class DocumentImporter {
         }
         return result;
       }
-      hasher.close();
-      return await useCases.importDocument(
-        name: source.name,
-        mimeType: mimeTypeFor(source.name),
-        sizeBytes: size,
-        sha256: digest.value.toString(),
-        folderId: folderId,
-      );
     } on Object catch (error, stackTrace) {
       return Err(
         StorageFailure(
@@ -192,7 +212,7 @@ CacheDirectory cacheDirectory(Ref ref) => const AppSupportCacheDirectory();
 DocumentImporter documentImporter(Ref ref) => DocumentImporter(
   useCases: ref.watch(vaultUseCasesProvider),
   cacheDirectory: ref.watch(cacheDirectoryProvider),
-  transfers: kIsWeb ? null : ref.watch(transferEngineProvider),
+  transfers: ref.watch(transferEngineProvider),
 );
 
 /// Convenience for tests: an [ImportSource] over in-memory bytes.

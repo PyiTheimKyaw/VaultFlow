@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const String vault = '/vault';
   static const String notes = '/notes';
   static const String transfers = '/transfers';
+  static const String search = '/search';
   static const String settings = '/settings';
   static const String settingsOutbox = '/settings/outbox';
   static const String settingsLock = '/settings/lock';
@@ -16,12 +17,20 @@ abstract final class AppRoutes {
   static String folder(String folderId) => '$vault/$folderId';
   static String note(String noteId) => '$notes/$noteId';
 
+  static const String searchParam = 'q';
+
+  /// `/search?q=…`; a blank query drops the parameter.
+  static String searchFor(String query) => query.trim().isEmpty
+      ? search
+      : Uri(path: search, queryParameters: {searchParam: query}).toString();
+
   static const String loginName = 'login';
   static const String vaultName = 'vault';
   static const String folderName = 'folder';
   static const String notesName = 'notes';
   static const String noteName = 'note';
   static const String transfersName = 'transfers';
+  static const String searchName = 'search';
   static const String settingsName = 'settings';
   static const String settingsOutboxName = 'settings-outbox';
   static const String settingsLockName = 'settings-lock';

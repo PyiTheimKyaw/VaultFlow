@@ -16,6 +16,8 @@ class SyncScheduler {
     required this.outboxCount,
     this.debounce = const Duration(seconds: 2),
     this.period = const Duration(minutes: 15),
+    this.eventSource,
+    this.eventRetry = const Duration(seconds: 5),
   });
 
   final SyncEngine engine;
@@ -25,6 +27,16 @@ class SyncScheduler {
   final Stream<int> outboxCount;
   final Duration debounce;
   final Duration period;
+
+  /// Optional realtime nudge (`GET /sync/events`): each element means the
+  /// server has changes for this user. The stream is re-opened with a
+  /// backoff when it ends or errors, and only while the scheduler runs.
+  final Stream<int> Function()? eventSource;
+  final Duration eventRetry;
+
+  StreamSubscription<int>? _eventSub;
+  Timer? _eventReconnect;
+  int _eventFailures = 0;
 
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<int>? _outboxSub;
@@ -50,7 +62,32 @@ class SyncScheduler {
       if (grew) _scheduleDebounced();
     });
     _periodic = Timer.periodic(period, (_) => _trigger('periodic'));
+    _listenEvents();
     _trigger('start');
+  }
+
+  void _listenEvents() {
+    final source = eventSource;
+    if (source == null || !_started) return;
+    _eventSub = source().listen(
+      (_) {
+        _eventFailures = 0;
+        _trigger('event');
+      },
+      onError: (Object e) => _scheduleReconnect('error: $e'),
+      onDone: () => _scheduleReconnect('closed'),
+      cancelOnError: true,
+    );
+  }
+
+  void _scheduleReconnect(String why) {
+    if (!_started) return;
+    _eventSub = null;
+    _eventFailures++;
+    final delay = eventRetry * (1 << (_eventFailures - 1).clamp(0, 5));
+    _log.debug('event stream $why; reconnecting', fields: {'in': '$delay'});
+    _eventReconnect?.cancel();
+    _eventReconnect = Timer(delay, _listenEvents);
   }
 
   void onAppResumed() {
@@ -76,6 +113,10 @@ class SyncScheduler {
     unawaited(_outboxSub?.cancel());
     _debounceTimer?.cancel();
     _periodic?.cancel();
+    unawaited(_eventSub?.cancel());
+    _eventReconnect?.cancel();
+    _eventSub = null;
+    _eventReconnect = null;
     _connectivitySub = null;
     _outboxSub = null;
     _debounceTimer = null;

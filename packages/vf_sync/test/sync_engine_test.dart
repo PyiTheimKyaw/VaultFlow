@@ -107,6 +107,55 @@ void main() {
     });
   });
 
+  test('server events trigger a round and the stream reconnects', () {
+    fakeAsync((async) {
+      final connectivity = FakeConnectivityMonitor();
+      var rounds = 0;
+      var opened = 0;
+      final engine = _CountingEngine(a, () => rounds++);
+      final counts = StreamControllerFixture();
+      late StreamController<int> events;
+      final scheduler = SyncScheduler(
+        engine: engine,
+        connectivity: connectivity,
+        outboxCount: counts.stream,
+        eventRetry: const Duration(seconds: 1),
+        eventSource: () {
+          opened++;
+          events = StreamController<int>();
+          return events.stream;
+        },
+      )..start();
+      async.flushMicrotasks();
+      expect(rounds, 1, reason: 'start');
+      expect(opened, 1);
+
+      events.add(7);
+      async.flushMicrotasks();
+      expect(rounds, 2, reason: 'event');
+
+      // Server closed the stream: reopen after the retry delay, backing
+      // off on repeated failures.
+      unawaited(events.close());
+      async.elapse(const Duration(seconds: 1));
+      expect(opened, 2);
+      events.addError(StateError('boom'));
+      async.elapse(const Duration(seconds: 1));
+      expect(opened, 2, reason: 'second failure waits 2 s');
+      async.elapse(const Duration(seconds: 1));
+      expect(opened, 3);
+
+      events.add(8);
+      async.flushMicrotasks();
+      expect(rounds, 3, reason: 'a successful event resets the backoff');
+
+      scheduler.stop();
+      unawaited(events.close());
+      async.elapse(const Duration(minutes: 1));
+      expect(opened, 3, reason: 'no reconnect after stop');
+    });
+  });
+
   test(
     'a round that outlives dispose finishes without touching state',
     () async {

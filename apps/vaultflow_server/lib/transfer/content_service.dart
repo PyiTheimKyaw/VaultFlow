@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 import 'package:vaultflow_server/http/api_exception.dart';
 import 'package:vaultflow_server/storage/storage_adapter.dart';
 import 'package:vaultflow_server/sync/sync_store.dart';
+import 'package:vaultflow_server/transfer/models.dart';
 import 'package:vaultflow_server/transfer/upload_store.dart';
 import 'package:vf_protocol/vf_protocol.dart';
 
@@ -15,6 +16,7 @@ class ContentRange {
     required this.etag,
     required this.mimeType,
     required this.stream,
+    this.fileName,
   });
 
   final int start;
@@ -27,6 +29,9 @@ class ContentRange {
   final String etag;
   final String mimeType;
   final Stream<List<int>> stream;
+
+  /// The document's name, for `Content-Disposition`.
+  final String? fileName;
 
   int get length => end - start + 1;
   bool get isPartial => start != 0 || end != total - 1;
@@ -46,11 +51,12 @@ class ContentService {
 
   static final RegExp _rangeHeader = RegExp(r'^bytes=(\d*)-(\d*)$');
 
-  Future<ContentRange> read(
+  /// Resolves the document and its blob, or throws 404. Also used to
+  /// validate a document before issuing a download link.
+  Future<(StoredEntity, BlobRecord)> describe(
     String userId,
-    String documentId, {
-    String? rangeHeader,
-  }) async {
+    String documentId,
+  ) async {
     final document = await sync.find(userId, EntityType.document, documentId);
     if (document == null || document.isDeleted) {
       throw const ApiException.notFound('Document not found');
@@ -61,6 +67,16 @@ class ContentService {
     }
     final blob = await uploads.findBlobByKey(userId, key);
     if (blob == null) throw const ApiException.notFound('Content missing');
+    return (document, blob);
+  }
+
+  Future<ContentRange> read(
+    String userId,
+    String documentId, {
+    String? rangeHeader,
+  }) async {
+    final (document, blob) = await describe(userId, documentId);
+    final key = blob.storageKey;
     final total = blob.sizeBytes;
 
     var start = 0;
@@ -88,6 +104,7 @@ class ContentService {
       end: end,
       total: total,
       etag: blob.sha256,
+      fileName: document.snapshot['name'] as String?,
       mimeType:
           document.snapshot['mime_type'] as String? ??
           'application/octet-stream',

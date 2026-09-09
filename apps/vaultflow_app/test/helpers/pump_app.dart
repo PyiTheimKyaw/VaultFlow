@@ -59,6 +59,9 @@ class TestApp {
   final FakeBiometricGate biometrics;
   final FakeClock clock;
 
+  /// URLs handed to the OS (file opens, browser downloads).
+  late List<Uri> openedUrls;
+
   static Future<TestApp> pump(
     WidgetTester tester, {
     Size size = const Size(1200, 800),
@@ -66,6 +69,7 @@ class TestApp {
     String? initialLocation,
     String? pin,
     LockSettings lockSettings = const LockSettings(),
+    bool web = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -79,6 +83,7 @@ class TestApp {
     final secureStore = InMemorySecureStore();
     final biometrics = FakeBiometricGate();
     final clock = FakeClock(DateTime.utc(2026, 9, 7, 9));
+    final openedUrls = <Uri>[];
     final pinVault = PinVault(
       secureStore,
       clock: clock,
@@ -120,6 +125,11 @@ class TestApp {
           );
           ref.onDispose(engine.dispose);
           return engine;
+        }),
+        isWebProvider.overrideWithValue(web),
+        urlOpenerProvider.overrideWithValue((uri) async {
+          openedUrls.add(uri);
+          return true;
         }),
         secureStoreProvider.overrideWithValue(secureStore),
         biometricGateProvider.overrideWithValue(biometrics),
@@ -183,7 +193,7 @@ class TestApp {
       secureStore,
       biometrics,
       clock,
-    );
+    )..openedUrls = openedUrls;
   }
 
   String get location => container

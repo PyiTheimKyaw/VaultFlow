@@ -28,6 +28,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     'Cache-Control': 'private, max-age=0',
     if (range.isPartial)
       'Content-Range': 'bytes ${range.start}-${range.end}/${range.total}',
+    // Signed-link requests come from a browser: make it save the file.
+    if (auth.deviceId == downloadLinkDevice)
+      'Content-Disposition': contentDisposition(range.fileName ?? id),
   };
   if (context.request.method == HttpMethod.head) {
     return Response(headers: headers, body: '');

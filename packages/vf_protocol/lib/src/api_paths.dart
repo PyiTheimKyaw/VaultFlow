@@ -23,6 +23,11 @@ abstract final class ApiPaths {
 
   static String documentContent(String documentId) =>
       '/documents/$documentId/content';
+  static String documentDownloadUrl(String documentId) =>
+      '/documents/$documentId/download-url';
+
+  /// Query parameter carrying a signed download token on [documentContent].
+  static const String downloadTokenParam = 'token';
 
   /// Header carrying `vfProtocolVersion`.
   static const String protocolHeader = 'X-VaultFlow-Protocol';

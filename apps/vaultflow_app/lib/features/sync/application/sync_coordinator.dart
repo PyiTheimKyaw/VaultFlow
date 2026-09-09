@@ -71,10 +71,16 @@ class SyncCoordinator extends _$SyncCoordinator {
   Future<void> _start(SyncEngine engine) async {
     await engine.recover();
     if (!ref.read(syncEnabledProvider)) return;
+    final api = ref.read(apiClientProvider);
     final scheduler = SyncScheduler(
       engine: engine,
       connectivity: ref.read(connectivityProvider),
       outboxCount: ref.read(outboxRepositoryProvider).watchPendingCount(),
+      // Realtime nudges over SSE; the browser adapter cannot stream, so web
+      // relies on the periodic timer and resume triggers.
+      eventSource: ref.read(isWebProvider)
+          ? null
+          : () => api.syncEvents(excludeDeviceId: engine.deviceId),
     );
     _scheduler = scheduler;
     _lifecycle = AppLifecycleListener(onResume: scheduler.onAppResumed);

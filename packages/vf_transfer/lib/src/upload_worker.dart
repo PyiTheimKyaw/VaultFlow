@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
@@ -33,6 +34,7 @@ class UploadWorker {
     this.parallelChunks = 3,
     this.chunkAttempts = 5,
     this.clock = const SystemClock(),
+    this.bytes,
   });
 
   final VaultFlowDatabase db;
@@ -43,6 +45,10 @@ class UploadWorker {
   final int parallelChunks;
   final int chunkAttempts;
   final Clock clock;
+
+  /// In-memory content (web, where there is no file to read from). When
+  /// set, `localPath` is only a label.
+  final Uint8List? bytes;
 
   TransfersDao get _dao => db.transfersDao;
 
@@ -193,6 +199,8 @@ class UploadWorker {
 
   Future<List<int>> _readChunk(int offset, int length) async {
     if (length == 0) return const [];
+    final memory = bytes;
+    if (memory != null) return memory.sublist(offset, offset + length);
     final file = File(session.localPath);
     return await file
         .openRead(offset, offset + length)

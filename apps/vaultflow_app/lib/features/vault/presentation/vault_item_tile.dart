@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/features/conflicts/presentation/conflict_resolver_sheet.dart';
@@ -13,7 +12,9 @@ import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/shared/result_feedback.dart';
 import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
 import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
+import 'package:vaultflow_app/features/vault/application/vault_selection.dart';
 import 'package:vaultflow_app/features/vault/presentation/dialogs.dart';
+import 'package:vaultflow_app/features/vault/presentation/drag_drop.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_transfer/vf_transfer.dart';
@@ -34,6 +35,8 @@ sealed class VaultItem {
   DateTime get updatedAt;
   IconData get icon;
   String get subtitle;
+
+  VaultRef get asRef => (type: type, id: id, name: name);
 }
 
 final class FolderItem extends VaultItem {
@@ -181,6 +184,37 @@ class VaultItemActions {
     await showConflictResolverSheet(context, match);
   }
 
+  /// Desktop right-click menu at [globalPosition].
+  Future<void> showContextMenu(Offset globalPosition) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: menuItems(),
+    );
+    if (choice != null && context.mounted) await run(choice);
+  }
+
+  List<PopupMenuEntry<String>> menuItems() => [
+    if (item.syncStatus == SyncStatus.conflicted)
+      const PopupMenuItem(value: 'resolve', child: Text('Resolve conflict…')),
+    const PopupMenuItem(value: 'rename', child: Text('Rename')),
+    const PopupMenuItem(value: 'move', child: Text('Move to…')),
+    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+  ];
+
+  Future<void> run(String action) => switch (action) {
+    'resolve' => resolveConflict(),
+    'rename' => rename(),
+    'move' => move(),
+    'delete' => delete(),
+    _ => Future<void>.value(),
+  };
+
   Future<void> delete() async {
     final confirmed = await showDeleteDialog(
       context,
@@ -216,9 +250,36 @@ class DocumentSheet extends ConsumerWidget {
 
   final String documentId;
 
+  /// Web: the browser saves the file through a short-lived signed link.
+  Future<void> _downloadViaLink(
+    BuildContext context,
+    WidgetRef ref,
+    Document doc,
+  ) async {
+    final api = ref.read(apiClientProvider);
+    final result = await api.createDownloadUrl(doc.id);
+    if (!context.mounted) return;
+    switch (result) {
+      case Ok(:final value):
+        final opened = await ref.read(urlOpenerProvider)(
+          api.absolute(value.url),
+        );
+        if (!opened && context.mounted) {
+          reportResult(
+            context,
+            const Err<void>(UnexpectedFailure('Could not open the download')),
+          );
+        }
+      case Err():
+        reportResult(context, result);
+    }
+  }
+
   Future<void> _open(BuildContext context, WidgetRef ref, Document doc) async {
     if (doc.isAvailableOffline && doc.localPath != null) {
-      final opened = await launchUrl(Uri.file(doc.localPath!));
+      final opened = await ref.read(urlOpenerProvider)(
+        Uri.file(doc.localPath!),
+      );
       if (!opened && context.mounted) {
         reportResult(
           context,
@@ -238,7 +299,7 @@ class DocumentSheet extends ConsumerWidget {
       await ref.read(transferEngineProvider).enqueueDownload(doc);
     } else {
       final path = doc.localPath;
-      if (path != null && !kIsWeb) {
+      if (path != null && !ref.read(isWebProvider)) {
         final file = File(path);
         if (file.existsSync()) await file.delete();
       }
@@ -312,7 +373,7 @@ class DocumentSheet extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: VfSpacing.lg),
-            if (!kIsWeb) ...[
+            if (!ref.watch(isWebProvider)) ...[
               SwitchListTile(
                 key: const Key('document-offline'),
                 contentPadding: EdgeInsets.zero,
@@ -344,9 +405,13 @@ class DocumentSheet extends ConsumerWidget {
                 label: Text(document.isAvailableOffline ? 'Open' : 'Download'),
               ),
             ] else
-              Text(
-                'Downloads on the web arrive with Phase 6.',
-                style: theme.textTheme.bodySmall,
+              FilledButton.icon(
+                key: const Key('document-download-link'),
+                onPressed: document.isUploaded
+                    ? () => unawaited(_downloadViaLink(context, ref, document))
+                    : null,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Download'),
               ),
           ],
         ),
@@ -385,64 +450,62 @@ class _Detail extends StatelessWidget {
   }
 }
 
-Future<void> _showActionsSheet(
-  BuildContext context,
-  VaultItemActions actions,
-) async {
-  final choice = await showModalBottomSheet<String>(
-    context: context,
-    showDragHandle: true,
-    builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.drive_file_rename_outline),
-            title: const Text('Rename'),
-            onTap: () => Navigator.of(context).pop('rename'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.drive_file_move_outline),
-            title: const Text('Move to…'),
-            onTap: () => Navigator.of(context).pop('move'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline),
-            title: const Text('Delete'),
-            onTap: () => Navigator.of(context).pop('delete'),
-          ),
-        ],
-      ),
-    ),
-  );
-  switch (choice) {
-    case 'rename':
-      await actions.rename();
-    case 'move':
-      await actions.move();
-    case 'delete':
-      await actions.delete();
-  }
-}
-
 PopupMenuButton<String> _menu(VaultItemActions actions) {
   return PopupMenuButton<String>(
     key: Key('item-menu-${actions.item.id}'),
     tooltip: 'More',
-    onSelected: (value) => unawaited(switch (value) {
-      'resolve' => actions.resolveConflict(),
-      'rename' => actions.rename(),
-      'move' => actions.move(),
-      'delete' => actions.delete(),
-      _ => Future<void>.value(),
-    }),
-    itemBuilder: (context) => [
-      if (actions.item.syncStatus == SyncStatus.conflicted)
-        const PopupMenuItem(value: 'resolve', child: Text('Resolve conflict…')),
-      const PopupMenuItem(value: 'rename', child: Text('Rename')),
-      const PopupMenuItem(value: 'move', child: Text('Move to…')),
-      const PopupMenuItem(value: 'delete', child: Text('Delete')),
-    ],
+    onSelected: (value) => unawaited(actions.run(value)),
+    itemBuilder: (context) => actions.menuItems(),
+  );
+}
+
+/// Selection-aware tap handling shared by tile and card:
+/// * selection active → tap toggles;
+/// * ⌘/Ctrl-click → toggles (desktop);
+/// * otherwise opens.
+void _handleTap(WidgetRef ref, VaultItem item, VaultItemActions actions) {
+  final selection = ref.read(vaultSelectionProvider.notifier);
+  final modifier =
+      HardwareKeyboard.instance.isMetaPressed ||
+      HardwareKeyboard.instance.isControlPressed;
+  if (ref.read(vaultSelectionProvider).isNotEmpty || modifier) {
+    selection.toggle(item.asRef);
+  } else {
+    actions.open();
+  }
+}
+
+/// Wraps [child] with drag source, folder drop target and right-click menu.
+Widget _interactive({
+  required BuildContext context,
+  required WidgetRef ref,
+  required VaultItem item,
+  required VaultItemActions actions,
+  required Widget Function(bool hovering) child,
+}) {
+  final selected = ref.watch(vaultSelectionProvider);
+  final payload = VaultDragPayload(
+    selected.containsKey(item.id)
+        ? [item.asRef, ...selected.values.where((r) => r.id != item.id)]
+        : [item.asRef],
+  );
+  var inner = item is FolderItem
+      ? FolderDropTarget(
+          folderId: item.id,
+          builder: (context, hovering) => child(hovering),
+        )
+      : child(false);
+  inner = GestureDetector(
+    onSecondaryTapUp: (d) =>
+        unawaited(actions.showContextMenu(d.globalPosition)),
+    child: inner,
+  );
+  return vaultDraggable(
+    payload: payload,
+    context: context,
+    onLongPressSelect: () =>
+        ref.read(vaultSelectionProvider.notifier).toggle(item.asRef),
+    child: inner,
   );
 }
 
@@ -455,28 +518,47 @@ class VaultItemTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = VaultItemActions(context, ref, item);
     final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      key: Key('item-${item.id}'),
-      leading: CircleAvatar(
-        backgroundColor: scheme.surfaceContainerHighest,
-        foregroundColor: scheme.onSurfaceVariant,
-        child: Icon(item.icon),
+    final selection = ref.watch(vaultSelectionProvider);
+    final selecting = selection.isNotEmpty;
+    final isSelected = selection.containsKey(item.id);
+    return _interactive(
+      context: context,
+      ref: ref,
+      item: item,
+      actions: actions,
+      child: (hovering) => ListTile(
+        key: Key('item-${item.id}'),
+        selected: isSelected,
+        selectedTileColor: scheme.secondaryContainer,
+        tileColor: hovering ? scheme.tertiaryContainer : null,
+        leading: selecting
+            ? Checkbox(
+                key: Key('item-check-${item.id}'),
+                value: isSelected,
+                onChanged: (_) => ref
+                    .read(vaultSelectionProvider.notifier)
+                    .toggle(item.asRef),
+              )
+            : CircleAvatar(
+                backgroundColor: scheme.surfaceContainerHighest,
+                foregroundColor: scheme.onSurfaceVariant,
+                child: Icon(item.icon),
+              ),
+        title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          '${item.subtitle} · ${formatRelative(item.updatedAt)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SyncStatusBadge(status: badgeFor(item.syncStatus), compact: true),
+            _menu(actions),
+          ],
+        ),
+        onTap: () => _handleTap(ref, item, actions),
       ),
-      title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        '${item.subtitle} · ${formatRelative(item.updatedAt)}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SyncStatusBadge(status: badgeFor(item.syncStatus), compact: true),
-          _menu(actions),
-        ],
-      ),
-      onTap: actions.open,
-      onLongPress: () => unawaited(_showActionsSheet(context, actions)),
     );
   }
 }
@@ -490,41 +572,63 @@ class VaultItemCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = VaultItemActions(context, ref, item);
     final theme = Theme.of(context);
-    return Card(
-      key: Key('item-${item.id}'),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: actions.open,
-        child: Padding(
-          padding: const EdgeInsets.all(VfSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(item.icon, color: theme.colorScheme.primary),
-                  const Spacer(),
-                  SyncStatusBadge(
-                    status: badgeFor(item.syncStatus),
-                    compact: true,
-                  ),
-                  _menu(actions),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                item.name,
-                style: theme.textTheme.titleSmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                item.subtitle,
-                style: theme.textTheme.bodySmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+    final selection = ref.watch(vaultSelectionProvider);
+    final isSelected = selection.containsKey(item.id);
+    return _interactive(
+      context: context,
+      ref: ref,
+      item: item,
+      actions: actions,
+      child: (hovering) => Card(
+        key: Key('item-${item.id}'),
+        clipBehavior: Clip.antiAlias,
+        color: isSelected
+            ? theme.colorScheme.secondaryContainer
+            : hovering
+            ? theme.colorScheme.tertiaryContainer
+            : null,
+        child: InkWell(
+          onTap: () => _handleTap(ref, item, actions),
+          child: Padding(
+            padding: const EdgeInsets.all(VfSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (selection.isNotEmpty)
+                      Checkbox(
+                        key: Key('item-check-${item.id}'),
+                        value: isSelected,
+                        onChanged: (_) => ref
+                            .read(vaultSelectionProvider.notifier)
+                            .toggle(item.asRef),
+                      )
+                    else
+                      Icon(item.icon, color: theme.colorScheme.primary),
+                    const Spacer(),
+                    SyncStatusBadge(
+                      status: badgeFor(item.syncStatus),
+                      compact: true,
+                    ),
+                    _menu(actions),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  item.name,
+                  style: theme.textTheme.titleSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  item.subtitle,
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),

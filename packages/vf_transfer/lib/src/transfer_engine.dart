@@ -51,6 +51,13 @@ class TransferEngine {
     const {},
   );
   final Map<String, CancelToken> _running = {};
+
+  /// Upload content held in memory (web). Lost on reload: [recover] parks
+  /// such sessions as failed so the user re-imports.
+  final Map<String, Uint8List> _memory = {};
+
+  /// Prefix of `localPath` for in-memory uploads.
+  static const String memoryPathPrefix = 'memory:';
   final Map<String, Timer> _retryTimers = {};
   final Map<String, ({DateTime at, int bytes})> _lastSample = {};
   bool _disposed = false;
@@ -67,6 +74,18 @@ class TransferEngine {
     if (recovered > 0) {
       _log.info('recovered running transfers', fields: {'count': recovered});
     }
+    for (final s in await _dao.listSessions()) {
+      if (!s.transferState.isTerminal &&
+          s.localPath.startsWith(memoryPathPrefix) &&
+          !_memory.containsKey(s.id)) {
+        await _dao.setState(
+          s.id,
+          TransferState.failed.name,
+          error: 'Content was lost when the page reloaded; import it again',
+          now: clock.now(),
+        );
+      }
+    }
     unawaited(_pump());
   }
 
@@ -78,8 +97,10 @@ class TransferEngine {
     required int totalBytes,
     required String sha256,
     String? sessionId,
+    Uint8List? bytes,
   }) async {
     final id = sessionId ?? VfId.next();
+    if (bytes != null) _memory[id] = bytes;
     final now = clock.now();
     final plans = planChunks(totalBytes, chunkSize);
     await db.transaction(() async {
@@ -223,7 +244,9 @@ class TransferEngine {
             onProgress: report,
             parallelChunks: parallelChunks,
             clock: clock,
+            bytes: _memory[session.id],
           ).run();
+          _memory.remove(session.id);
         case TransferKind.download:
           await DownloadWorker(
             db: db,

@@ -44,7 +44,9 @@ Both require a bearer access token; `device_id` in the push body must match the 
 | `GET /uploads/{id}` | received chunk indexes, expiry |
 | `PUT /uploads/{id}/chunks/{n}` | raw bytes, `X-Chunk-Sha256`, exact chunk length; idempotent |
 | `POST /uploads/{id}/complete` | assembles, verifies sha256, registers the blob, stamps the document if it exists |
-| `GET /documents/{id}/content` | bytes with `Range` support (206, `ETag` = sha256) |
+| `GET /documents/{id}/content` | bytes with `Range` support (206, `ETag` = sha256); also accepts `?token=` from a download link (served as an attachment) |
+| `POST /documents/{id}/download-url` | 5-minute signed link for browsers (`DOWNLOAD_LINK_TTL_MINUTES`) |
+| `GET /sync/events` | server-sent events: `event: change` with the newest seq from other devices, `: ping` every 15 s, closes after `EVENTS_MAX_AGE_MINUTES` |
 
 Storage: `STORAGE_BACKEND=local` (default, `STORAGE_ROOT`) or `s3` with the
 `S3_*` variables. Sessions expire after `UPLOAD_SESSION_TTL_HOURS`.

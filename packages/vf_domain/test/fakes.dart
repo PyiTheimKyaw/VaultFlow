@@ -24,6 +24,22 @@ class FakeVaultRepository implements VaultRepository {
   }
 
   @override
+  Future<FolderContents> searchByName(String query, {int limit = 50}) async {
+    final q = query.toLowerCase();
+    return FolderContents(
+      folderId: null,
+      folders: folders.values
+          .where((f) => !f.isDeleted && f.name.toLowerCase().contains(q))
+          .take(limit)
+          .toList(),
+      documents: documents.values
+          .where((d) => !d.isDeleted && d.name.toLowerCase().contains(q))
+          .take(limit)
+          .toList(),
+    );
+  }
+
+  @override
   Future<List<Folder>> getAncestors(String folderId) async {
     final chain = <Folder>[];
     var current = folders[folderId];

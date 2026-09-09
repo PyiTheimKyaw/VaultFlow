@@ -97,6 +97,9 @@ abstract interface class SyncStore {
     String? excludeDeviceId,
   });
 
+  /// The newest change for [userId], or `null` when there is none.
+  Future<ChangeRecord?> latestChange(String userId);
+
   Future<Map<String, Object?>?> findAppliedOp(
     String deviceId,
     String clientOpId,
@@ -192,6 +195,10 @@ class InMemorySyncStore implements SyncStore {
       )
       .take(limit)
       .toList();
+
+  @override
+  Future<ChangeRecord?> latestChange(String userId) async =>
+      changes.where((c) => c.userId == userId).lastOrNull;
 
   @override
   Future<Map<String, Object?>?> findAppliedOp(

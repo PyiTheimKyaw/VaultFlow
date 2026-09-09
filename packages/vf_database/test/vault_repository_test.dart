@@ -131,4 +131,25 @@ void main() {
       expect(saved.createdAt.isUtc, isTrue);
     },
   );
+
+  test('searchByName matches case-insensitively, prefix first', () async {
+    await h.vault.createFolder(h.folder('Reports 2026'));
+    await h.vault.createFolder(h.folder('old reports'));
+    await h.vault.createFolder(h.folder('Photos'));
+    await h.vault.createDocument(h.document('report.pdf'));
+    await h.vault.createDocument(h.document('100%_done.txt'));
+    final gone = h.document('report-deleted.pdf');
+    await h.vault.createDocument(gone);
+    await h.vault.deleteDocument(gone.id, DateTime.utc(2026));
+
+    final hits = await h.vault.searchByName('rep');
+    expect(hits.folders.map((f) => f.name), ['Reports 2026', 'old reports']);
+    expect(hits.documents.map((d) => d.name), ['report.pdf']);
+    expect(hits.notes, isEmpty);
+
+    // LIKE wildcards in the query are matched literally.
+    expect((await h.vault.searchByName('%')).documents, hasLength(1));
+    expect((await h.vault.searchByName('_done')).documents, hasLength(1));
+    expect((await h.vault.searchByName('zzz')).folders, isEmpty);
+  });
 }

@@ -93,6 +93,54 @@ Middleware authRequired() {
   };
 }
 
+/// Pseudo device id of requests authenticated by a download link.
+const String downloadLinkDevice = 'download-link';
+
+/// `attachment; filename=…` with a UTF-8 fallback per RFC 6266.
+String contentDisposition(String fileName) {
+  final ascii = fileName
+      .replaceAll(RegExp(r'[^\x20-\x7E]'), '_')
+      .replaceAll('"', '');
+  final encoded = Uri.encodeComponent(fileName);
+  return 'attachment; filename="$ascii"; filename*=UTF-8\'\'$encoded';
+}
+
+/// Like [authRequired], but a `token` query parameter on
+/// `/documents/{id}/content` is accepted in place of the bearer header.
+/// The token is bound to that one document id.
+Middleware authOrDownloadToken() {
+  final content = RegExp(r'^/documents/([^/]+)/content/?$');
+  return (handler) => (context) async {
+    final uri = context.request.uri;
+    final token = uri.queryParameters[ApiPaths.downloadTokenParam];
+    final match = content.firstMatch('/${uri.path}'.replaceAll('//', '/'));
+    if (token != null && match != null && bearerToken(context) == null) {
+      final String userId;
+      try {
+        userId = context.read<ServerContext>().tokens.verifyDownloadToken(
+          token,
+          documentId: match.group(1)!,
+        );
+      } on AccessTokenException catch (e) {
+        throw ApiException(
+          e.reason == AccessTokenError.expired
+              ? ApiErrorCode.tokenExpired
+              : ApiErrorCode.unauthorized,
+          e.reason == AccessTokenError.expired
+              ? 'Download link expired'
+              : 'Invalid download link',
+        );
+      }
+      return await handler(
+        context.provide<AuthContext>(
+          () => AuthContext(userId: userId, deviceId: downloadLinkDevice),
+        ),
+      );
+    }
+    return await authRequired()(handler)(context);
+  };
+}
+
 /// Verifies the bearer token on [context]; throws [ApiException] on failure.
 AccessClaims authenticate(RequestContext context) {
   final token = bearerToken(context);

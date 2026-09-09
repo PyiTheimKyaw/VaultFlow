@@ -18,5 +18,6 @@ export 'src/repositories/outbox_repository.dart';
 export 'src/repositories/vault_repository.dart';
 export 'src/usecases/item_name.dart';
 export 'src/usecases/notes_use_cases.dart';
+export 'src/usecases/search_use_cases.dart';
 export 'src/usecases/vault_use_cases.dart';
 export 'src/vf_domain_version.dart';

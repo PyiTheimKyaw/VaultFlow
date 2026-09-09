@@ -1,12 +1,13 @@
 {
-    "name": "vault_flow",
-    "short_name": "vault_flow",
-    "start_url": ".",
+    "name": "VaultFlow",
+    "short_name": "VaultFlow",
+    "start_url": "/vault",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0f172a",
+    "theme_color": "#3556D8",
+    "description": "Your offline-first personal vault: folders, files and notes that sync across devices.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
@@ -31,5 +32,9 @@
             "type": "image/png",
             "purpose": "maskable"
         }
+    ],
+    "categories": [
+        "productivity",
+        "utilities"
     ]
 }
