@@ -11,6 +11,11 @@ class ServerConfig {
     this.argon2Iterations = 2,
     this.corsAllowedOrigins = const ['*'],
     this.port = 8080,
+    this.storageBackend = StorageBackend.local,
+    this.storageRoot = '.storage',
+    this.s3,
+    this.uploadSessionTtl = const Duration(hours: 24),
+    this.maxChunkSize = 8 * 1024 * 1024,
   });
 
   factory ServerConfig.fromEnvironment([Map<String, String>? env]) {
@@ -29,8 +34,27 @@ class ServerConfig {
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
+    final backend = switch (e['STORAGE_BACKEND']) {
+      's3' => StorageBackend.s3,
+      _ => StorageBackend.local,
+    };
     return ServerConfig(
       jwtSecret: secret,
+      storageBackend: backend,
+      storageRoot: e['STORAGE_ROOT'] ?? '.storage',
+      s3: backend == StorageBackend.s3
+          ? S3Config(
+              endpoint: e['S3_ENDPOINT'] ?? 'localhost',
+              port: intOr('S3_PORT', 9000),
+              useSsl: e['S3_USE_SSL'] == 'true',
+              accessKey: e['S3_ACCESS_KEY'] ?? '',
+              secretKey: e['S3_SECRET_KEY'] ?? '',
+              bucket: e['S3_BUCKET'] ?? 'vaultflow',
+              region: e['S3_REGION'],
+            )
+          : null,
+      uploadSessionTtl: Duration(hours: intOr('UPLOAD_SESSION_TTL_HOURS', 24)),
+      maxChunkSize: intOr('MAX_CHUNK_SIZE', 8 * 1024 * 1024),
       databaseUrl: (e['DATABASE_URL'] ?? '').isEmpty ? null : e['DATABASE_URL'],
       accessTokenTtl: Duration(minutes: intOr('ACCESS_TOKEN_TTL_MINUTES', 15)),
       refreshTokenTtl: Duration(days: intOr('REFRESH_TOKEN_TTL_DAYS', 30)),
@@ -50,6 +74,37 @@ class ServerConfig {
   final int argon2Iterations;
   final List<String> corsAllowedOrigins;
   final int port;
+  final StorageBackend storageBackend;
+
+  /// Directory for [StorageBackend.local].
+  final String storageRoot;
+  final S3Config? s3;
+  final Duration uploadSessionTtl;
+
+  /// Largest chunk the server accepts in one request.
+  final int maxChunkSize;
 
   bool get usesPostgres => databaseUrl != null;
+}
+
+enum StorageBackend { local, s3 }
+
+class S3Config {
+  const S3Config({
+    required this.endpoint,
+    required this.port,
+    required this.useSsl,
+    required this.accessKey,
+    required this.secretKey,
+    required this.bucket,
+    this.region,
+  });
+
+  final String endpoint;
+  final int port;
+  final bool useSsl;
+  final String accessKey;
+  final String secretKey;
+  final String bucket;
+  final String? region;
 }

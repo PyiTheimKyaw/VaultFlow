@@ -26,6 +26,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   riverpod_annotation: ^4.0.7
+  url_launcher: ^6.3.2
   vf_core:
     path: ../../packages/vf_core
   vf_database:

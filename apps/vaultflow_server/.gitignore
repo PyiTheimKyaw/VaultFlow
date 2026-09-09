@@ -1,3 +1,4 @@
 # dart_frog generated
 build/
 .dart_frog/
+.storage/

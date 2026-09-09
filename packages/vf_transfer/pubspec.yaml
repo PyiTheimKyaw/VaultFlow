@@ -1,5 +1,5 @@
 name: vf_transfer
-description: "Resumable chunked upload/download engine."
+description: "Resumable chunked uploads and ranged downloads: chunk planner, workers, hasher, engine."
 publish_to: none
 version: 0.1.0
 
@@ -10,8 +10,13 @@ environment:
 resolution: workspace
 
 dependencies:
+  crypto: ^3.0.7
+  dio: ^5.11.1
+  drift: ^2.34.4
   flutter:
     sdk: flutter
+  meta: ^1.16.0
+  path: ^1.9.1
   vf_core:
     path: ../vf_core
   vf_database:
@@ -26,3 +31,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  vaultflow_server:
+    path: ../../apps/vaultflow_server
+  vf_sync:
+    path: ../vf_sync

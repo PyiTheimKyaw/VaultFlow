@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:vaultflow_app/features/vault/application/document_importer.dart';
@@ -8,6 +9,8 @@ import 'package:vf_core/vf_core.dart';
 import 'package:vf_database/testing.dart';
 import 'package:vf_database/vf_database.dart';
 import 'package:vf_domain/vf_domain.dart';
+import 'package:vf_network/vf_network.dart';
+import 'package:vf_transfer/vf_transfer.dart';
 
 import 'helpers/pump_app.dart';
 
@@ -89,5 +92,34 @@ void main() {
     );
     expect(result.failureOrNull, isA<StorageFailure>());
     expect((await repo.watchContents(null).first).documents, isEmpty);
+  });
+
+  test('with a transfer engine the create is blocked on an upload', () async {
+    final engine = TransferEngine(
+      db: db,
+      api: ApiClient(Dio(BaseOptions(baseUrl: 'https://api.test'))),
+      cacheRoot: () async => dir.path,
+      maxConcurrent: 0,
+    );
+    addTearDown(engine.dispose);
+    final withEngine = DocumentImporter(
+      useCases: VaultUseCases(vault: repo),
+      cacheDirectory: TempCacheDirectory(dir.path),
+      transfers: engine,
+      isWeb: false,
+    );
+    final doc = (await withEngine.importOne(
+      importSourceFromString('big.bin', 'b' * 3000),
+    )).getOrThrow();
+
+    final create = (await db.outboxDao.getAll()).single;
+    final session = (await db.transfersDao.listSessions()).single;
+    expect(create.state, OutboxState.blocked);
+    expect(create.dependsOnTransfer, session.id);
+    expect(session.documentId, doc.id);
+    expect(session.localPath, doc.localPath);
+    expect(session.totalBytes, 3000);
+    expect(session.sha256Expected, doc.sha256);
+    expect(await db.transfersDao.getChunks(session.id), hasLength(1));
   });
 }

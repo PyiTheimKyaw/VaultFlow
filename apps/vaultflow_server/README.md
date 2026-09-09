@@ -35,3 +35,16 @@ service container and runs the migrations before the test step.
 | `GET /sync/changes?since=&limit=&exclude_device=` | `ChangesResponse` page of the append-only feed |
 
 Both require a bearer access token; `device_id` in the push body must match the token.
+
+## Transfers
+
+| Route | Notes |
+|---|---|
+| `POST /uploads` | `UploadSessionCreateRequest`; 201 with `upload_id` or 200 `{dedup: true, storage_key}` |
+| `GET /uploads/{id}` | received chunk indexes, expiry |
+| `PUT /uploads/{id}/chunks/{n}` | raw bytes, `X-Chunk-Sha256`, exact chunk length; idempotent |
+| `POST /uploads/{id}/complete` | assembles, verifies sha256, registers the blob, stamps the document if it exists |
+| `GET /documents/{id}/content` | bytes with `Range` support (206, `ETag` = sha256) |
+
+Storage: `STORAGE_BACKEND=local` (default, `STORAGE_ROOT`) or `s3` with the
+`S3_*` variables. Sessions expire after `UPLOAD_SESSION_TTL_HOURS`.

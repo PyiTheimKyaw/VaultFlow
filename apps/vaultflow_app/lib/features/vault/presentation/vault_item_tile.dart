@@ -1,16 +1,22 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/features/conflicts/presentation/conflict_resolver_sheet.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/shared/result_feedback.dart';
 import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
+import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
 import 'package:vaultflow_app/features/vault/presentation/dialogs.dart';
+import 'package:vf_core/vf_core.dart';
 import 'package:vf_domain/vf_domain.dart';
+import 'package:vf_transfer/vf_transfer.dart';
 import 'package:vf_ui/vf_ui.dart';
 
 /// A folder, document or note shown in a folder listing.
@@ -198,36 +204,151 @@ class VaultItemActions {
       showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
-        builder: (context) => Padding(
-          padding: VfSpacing.pagePadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                document.name,
-                style: Theme.of(context).textTheme.titleLarge,
+        builder: (_) => DocumentSheet(documentId: document.id),
+      ),
+    );
+  }
+}
+
+/// Details plus the transfer actions: open, download, keep offline.
+class DocumentSheet extends ConsumerWidget {
+  const DocumentSheet({required this.documentId, super.key});
+
+  final String documentId;
+
+  Future<void> _open(BuildContext context, WidgetRef ref, Document doc) async {
+    if (doc.isAvailableOffline && doc.localPath != null) {
+      final opened = await launchUrl(Uri.file(doc.localPath!));
+      if (!opened && context.mounted) {
+        reportResult(
+          context,
+          const Err<void>(UnexpectedFailure('No app can open this file')),
+        );
+      }
+      return;
+    }
+    await ref.read(transferEngineProvider).enqueueDownload(doc);
+    if (context.mounted) {
+      reportResult(context, okVoid, successMessage: 'Downloading ${doc.name}…');
+    }
+  }
+
+  Future<void> _setOffline(WidgetRef ref, Document doc, bool keep) async {
+    if (keep) {
+      await ref.read(transferEngineProvider).enqueueDownload(doc);
+    } else {
+      final path = doc.localPath;
+      if (path != null && !kIsWeb) {
+        final file = File(path);
+        if (file.existsSync()) await file.delete();
+      }
+      await ref
+          .read(vaultRepositoryProvider)
+          .updateDocumentCache(doc.id, cacheState: CacheState.none);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final docAsync = ref.watch(documentProvider(documentId));
+    final sessions = ref.watch(transferSessionsProvider).value ?? const [];
+    final progress = ref.watch(transferProgressProvider).value ?? const {};
+    final theme = Theme.of(context);
+    final document = docAsync.value;
+    if (document == null) {
+      return const SizedBox(
+        height: 120,
+        child: Center(child: Text('Document not found')),
+      );
+    }
+    final active = sessions
+        .where((s) => s.documentId == documentId && !s.transferState.isTerminal)
+        .firstOrNull;
+    final activeProgress = active == null ? null : progress[active.id];
+    final downloading =
+        active != null && active.transferKind == TransferKind.download;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: VfSpacing.pagePadding,
+        child: Column(
+          key: const Key('document-sheet'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(document.name, style: theme.textTheme.titleLarge),
+            const SizedBox(height: VfSpacing.sm),
+            _Detail('Type', document.mimeType),
+            _Detail('Size', formatBytes(document.sizeBytes)),
+            _Detail('SHA-256', document.sha256, mono: true),
+            _Detail('Local copy', switch (document.cacheState) {
+              CacheState.complete => 'Available offline',
+              CacheState.partial => 'Partially downloaded',
+              CacheState.none => 'Not on this device',
+            }),
+            _Detail(
+              'Server',
+              document.isUploaded
+                  ? 'Uploaded'
+                  : active?.transferKind == TransferKind.upload
+                  ? 'Uploading…'
+                  : 'Waiting for upload',
+            ),
+            if (active != null) ...[
+              const SizedBox(height: VfSpacing.md),
+              LinearProgressIndicator(
+                key: const Key('document-progress'),
+                value: active.totalBytes == 0
+                    ? 1
+                    : (activeProgress?.bytesDone ?? active.bytesDone) /
+                          active.totalBytes,
               ),
-              const SizedBox(height: VfSpacing.sm),
-              _Detail('Type', document.mimeType),
-              _Detail('Size', formatBytes(document.sizeBytes)),
-              _Detail('SHA-256', document.sha256, mono: true),
-              _Detail('Local copy', switch (document.cacheState) {
-                CacheState.complete => 'Available offline',
-                CacheState.partial => 'Partially downloaded',
-                CacheState.none => 'Not on this device',
-              }),
-              _Detail(
-                'Server',
-                document.isUploaded ? 'Uploaded' : 'Waiting for upload',
-              ),
-              const SizedBox(height: VfSpacing.lg),
+              const SizedBox(height: VfSpacing.xs),
               Text(
-                'Opening and downloading files arrive with Phase 5.',
-                style: Theme.of(context).textTheme.bodySmall,
+                '${downloading ? 'Downloading' : 'Uploading'} · '
+                '${formatBytes(activeProgress?.bytesDone ?? active.bytesDone)} '
+                'of ${formatBytes(active.totalBytes)}',
+                style: theme.textTheme.bodySmall,
               ),
             ],
-          ),
+            const SizedBox(height: VfSpacing.lg),
+            if (!kIsWeb) ...[
+              SwitchListTile(
+                key: const Key('document-offline'),
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(Icons.offline_pin_outlined),
+                title: const Text('Keep available offline'),
+                subtitle: Text(
+                  document.isUploaded
+                      ? 'Stores a verified copy in the encrypted cache'
+                      : 'The local copy stays until the upload finishes',
+                ),
+                value: document.isAvailableOffline || downloading,
+                // Until the server has the bytes, the local copy is the only
+                // one: never offer to delete it.
+                onChanged: document.isUploaded
+                    ? (v) => unawaited(_setOffline(ref, document, v))
+                    : null,
+              ),
+              const SizedBox(height: VfSpacing.sm),
+              FilledButton.icon(
+                key: const Key('document-open'),
+                onPressed: document.isUploaded || document.isAvailableOffline
+                    ? () => unawaited(_open(context, ref, document))
+                    : null,
+                icon: Icon(
+                  document.isAvailableOffline
+                      ? Icons.open_in_new
+                      : Icons.cloud_download_outlined,
+                ),
+                label: Text(document.isAvailableOffline ? 'Open' : 'Download'),
+              ),
+            ] else
+              Text(
+                'Downloads on the web arrive with Phase 6.',
+                style: theme.textTheme.bodySmall,
+              ),
+          ],
         ),
       ),
     );

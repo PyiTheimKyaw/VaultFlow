@@ -120,6 +120,9 @@ final class VaultUseCases {
     required String sha256,
     String? folderId,
     String? localPath,
+
+    /// Upload session the document's sync op waits for.
+    String? dependsOnTransfer,
   }) async {
     final validName = ItemName.validate(name);
     if (validName case Err(:final failure)) return Err(failure);
@@ -143,7 +146,10 @@ final class VaultUseCases {
       updatedAt: now,
     );
     return await Result.guard(() async {
-      await vault.createDocument(document);
+      await vault.createDocument(
+        document,
+        dependsOnTransfer: dependsOnTransfer,
+      );
       return document;
     }, onError: _storage);
   }

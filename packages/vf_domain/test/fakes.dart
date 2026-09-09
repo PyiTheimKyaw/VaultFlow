@@ -60,7 +60,10 @@ class FakeVaultRepository implements VaultRepository {
   }
 
   @override
-  Future<void> createDocument(Document document) async {
+  Future<void> createDocument(
+    Document document, {
+    String? dependsOnTransfer,
+  }) async {
     _maybeFail();
     documents[document.id] = document;
   }

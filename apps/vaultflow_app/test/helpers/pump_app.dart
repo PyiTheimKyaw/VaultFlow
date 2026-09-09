@@ -1,24 +1,31 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 import 'package:vaultflow_app/app/app.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/app/router.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
+import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
+import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
 import 'package:vaultflow_app/features/vault/application/document_importer.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_database/testing.dart';
 import 'package:vf_database/vf_database.dart';
+import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_network/vf_network.dart';
 import 'package:vf_protocol/vf_protocol.dart';
 import 'package:vf_security/vf_security.dart';
+import 'package:vf_transfer/vf_transfer.dart';
 
 import 'fake_auth_server.dart';
 
@@ -101,6 +108,19 @@ class TestApp {
         cacheDirectoryProvider.overrideWithValue(
           TempCacheDirectory(cacheDir.path),
         ),
+        // Queue-only engine: sessions are persisted but the pool never
+        // starts, so widget tests neither hit the network nor leave timers.
+        transferEngineProvider.overrideWith((ref) {
+          final engine = TransferEngine(
+            db: db,
+            api: apiClient,
+            cacheRoot: () async => cacheDir.path,
+            clock: clock,
+            maxConcurrent: 0,
+          );
+          ref.onDispose(engine.dispose);
+          return engine;
+        }),
         secureStoreProvider.overrideWithValue(secureStore),
         biometricGateProvider.overrideWithValue(biometrics),
         pinVaultProvider.overrideWithValue(pinVault),
@@ -220,6 +240,49 @@ class TestApp {
   Future<List<OutboxRow>> outboxEntries() => settle(db.outboxDao.getAll());
 
   Future<int> outboxCount() async => (await outboxEntries()).length;
+
+  Future<List<TransferSessionRow>> transfers() =>
+      settle(db.transfersDao.listSessions());
+
+  /// Registers a document the way a native import does: the file sits in
+  /// the cache, its outbox create is blocked on an upload session, and the
+  /// session is queued in the (queue-only) engine. Synchronous file I/O
+  /// because the test runs under fake async.
+  Future<Document> importDocument(
+    String name,
+    String text, {
+    String? folderId,
+  }) async {
+    final file = File(p.join(cacheDir.path, name))..writeAsStringSync(text);
+    final hash = sha256.convert(utf8.encode(text)).toString();
+    final sessionId = VfId.next();
+    final document = await settle(
+      container
+          .read(vaultUseCasesProvider)
+          .importDocument(
+            name: name,
+            mimeType: mimeTypeFor(name),
+            sizeBytes: text.length,
+            sha256: hash,
+            folderId: folderId,
+            localPath: file.path,
+            dependsOnTransfer: sessionId,
+          ),
+    ).then((r) => r.getOrThrow());
+    await settle(
+      container
+          .read(transferEngineProvider)
+          .enqueueUpload(
+            documentId: document.id,
+            localPath: file.path,
+            totalBytes: text.length,
+            sha256: hash,
+            sessionId: sessionId,
+          ),
+    );
+    await tester.pumpAndSettle();
+    return document;
+  }
 }
 
 /// [testWidgets] plus an extra pump after the body: Drift schedules a

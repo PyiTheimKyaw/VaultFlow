@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:vaultflow_server/http/api_exception.dart';
+import 'package:vf_protocol/vf_protocol.dart';
 
 /// Parses the JSON object body or throws a 400.
 Future<Map<String, Object?>> readJsonObject(RequestContext context) async {
@@ -24,6 +26,18 @@ Response? methodNotAllowed(RequestContext context, Set<HttpMethod> allowed) {
     statusCode: 405,
     headers: {'allow': allowed.map((m) => m.value).join(', ')},
   );
+}
+
+/// Reads the raw body, refusing anything larger than [maxBytes] with 413.
+Future<List<int>> readBoundedBody(RequestContext context, int maxBytes) async {
+  final builder = BytesBuilder(copy: false);
+  await for (final chunk in context.request.bytes()) {
+    builder.add(chunk);
+    if (builder.length > maxBytes) {
+      throw const ApiException(ApiErrorCode.payloadTooLarge, 'Body too large');
+    }
+  }
+  return builder.takeBytes();
 }
 
 /// Bearer token from the Authorization header, or `null`.

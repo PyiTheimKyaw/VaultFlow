@@ -94,4 +94,4 @@ final class DocumentImporterProvider
   }
 }
 
-String _$documentImporterHash() => r'f46d88bf41fe48a847ed8524bf4370aa33834f2a';
+String _$documentImporterHash() => r'7a1f1172f4f411863c5631975f85e8de7aa028d2';

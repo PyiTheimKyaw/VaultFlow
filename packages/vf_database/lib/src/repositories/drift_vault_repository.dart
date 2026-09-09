@@ -190,22 +190,46 @@ class DriftVaultRepository implements VaultRepository {
 
   // -------------------------------------------------------------- documents
 
+  /// [dependsOnTransfer] parks the create as `blocked` until that upload
+  /// completes and fills in `storage_key`.
   @override
-  Future<void> createDocument(Document document) => _db.transaction(() async {
-    await _documents.insertRow(
-      Mappers.documentCompanion(
-        document.copyWith(syncStatus: SyncStatus.pending, version: 0),
+  Future<void> createDocument(Document document, {String? dependsOnTransfer}) =>
+      _db.transaction(() async {
+        await _documents.insertRow(
+          Mappers.documentCompanion(
+            document.copyWith(syncStatus: SyncStatus.pending, version: 0),
+          ),
+        );
+        final row = (await _documents.getById(document.id))!;
+        await _outbox.enqueue(
+          entityType: EntityType.document,
+          entityId: document.id,
+          op: SyncOp.create,
+          payload: Mappers.documentPayload(row),
+          baseVersion: 0,
+          now: document.createdAt,
+          dependsOnTransfer: dependsOnTransfer,
+        );
+      });
+
+  /// Records the object key once an upload finished: the row, and any
+  /// outbox create still waiting on the transfer, learn the key; then the
+  /// create is released.
+  Future<void> attachStorageKey(
+    String documentId, {
+    required String storageKey,
+    required String transferId,
+    int? version,
+  }) => _db.transaction(() async {
+    await _documents.updateRow(
+      documentId,
+      DocumentsCompanion(
+        storageKey: Value(storageKey),
+        version: version == null ? const Value.absent() : Value(version),
       ),
     );
-    final row = (await _documents.getById(document.id))!;
-    await _outbox.enqueue(
-      entityType: EntityType.document,
-      entityId: document.id,
-      op: SyncOp.create,
-      payload: Mappers.documentPayload(row),
-      baseVersion: 0,
-      now: document.createdAt,
-    );
+    await _outbox.patchBlockedPayload(transferId, {'storage_key': storageKey});
+    await _outbox.unblock(transferId);
   });
 
   @override

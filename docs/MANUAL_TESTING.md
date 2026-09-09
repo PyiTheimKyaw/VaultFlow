@@ -117,9 +117,60 @@ Use two clients on the same account, e.g. the macOS app and the web app.
 7. Background sync on phones (workmanager) runs roughly every 15 minutes when
    the OS allows it; it is not observable on demand.
 
-## 7. Phase 5 — resumable transfers (pending)
+## 7. Phase 5 — resumable transfers
 
-To be written when Phase 5 lands.
+Uploads and downloads need the server; files are stored under
+`apps/vaultflow_server/.storage` by default (set `STORAGE_ROOT` or
+`STORAGE_BACKEND=s3` with the `S3_*` variables for MinIO).
+
+1. Import a large file (tens of MB) in the vault. The Transfers tab shows it
+   uploading in chunks with speed and ETA; the vault row shows "offline" and
+   the ⋯ menu's details sheet shows "Uploading…", then "Uploaded". The sync
+   badge goes Pending → Synced once the create is pushed with its storage key.
+2. Kill test: while a big upload is running, force-quit the app (or Ctrl+C
+   `flutter run`), relaunch, sign in if needed. Transfers shows the same item
+   continuing from where it stopped; the server log shows only the missing
+   chunks being PUT.
+3. Offline test: turn off Wi-Fi mid-upload. The item retries with backoff
+   ("Retrying (attempt N)"); turn Wi-Fi back on and it finishes. After
+   8 failed attempts it is parked as Failed with a Retry button.
+4. Pause / Resume / Cancel from the Transfers tab. Cancelling a download
+   deletes its `.part` file.
+5. Dedupe: import the same file again under another name. It completes
+   instantly and the Transfers header shows "N MB saved by dedupe".
+6. Download: on a second device (or after "Keep available offline" off →
+   on), open the document's details sheet and tap Download / switch on
+   "Keep available offline". Progress shows in the sheet and in Transfers;
+   when done the sheet offers Open, which launches the file with the OS.
+7. Resume test: start a download, kill the app or drop the network halfway,
+   come back: it continues from the `.part` offset (server log shows a
+   `Range` request), verifies the hash and lands in the cache.
+8. Hash mismatch: corrupt an object under `.storage/u/<user>/…` on the
+   server, then download it: the transfer fails with "failed verification"
+   and no cached copy is kept.
+9. Web: import registers the metadata only; downloads/uploads on web arrive
+   with Phase 6.
+
+S3 backend (MinIO): `docker compose up -d minio minio-init`, then start the
+server with `STORAGE_BACKEND=s3 S3_ENDPOINT=localhost S3_PORT=9000
+S3_ACCESS_KEY=vaultflow S3_SECRET_KEY=vaultflow-secret S3_BUCKET=vaultflow
+scripts/dev_server.sh` and repeat steps 1–7. Objects appear in the MinIO
+console at http://localhost:9001 under `u/<user>/…`. The adapter contract
+test runs against it with:
+
+```bash
+cd apps/vaultflow_server
+TEST_S3_ENDPOINT=localhost:9000 dart test test/storage
+```
+
+Automated end-to-end check over real HTTP (upload in chunks, sync, ranged
+download on a second device, dedupe, `.part` resume), with the dev server
+running:
+
+```bash
+cd packages/vf_transfer
+VAULTFLOW_LIVE_API=http://localhost:8080 flutter test test/live
+```
 
 ## 8. Phase 6 — adaptive UX polish (pending)
 

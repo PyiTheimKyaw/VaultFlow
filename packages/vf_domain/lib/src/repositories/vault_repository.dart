@@ -35,7 +35,8 @@ abstract interface class VaultRepository {
   /// Soft-deletes the folder and everything beneath it.
   Future<void> deleteFolder(String id, DateTime now);
 
-  Future<void> createDocument(Document document);
+  /// [dependsOnTransfer] parks the sync op until that upload completes.
+  Future<void> createDocument(Document document, {String? dependsOnTransfer});
 
   Future<void> renameDocument(String id, String name, DateTime now);
 

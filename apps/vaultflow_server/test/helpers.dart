@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
@@ -19,10 +20,28 @@ ServerContext testContext({FakeClock? clock}) {
     clock: c,
   );
   final syncStore = InMemorySyncStore();
+  final uploadStore = InMemoryUploadStore();
+  final storage = LocalFsStorage(
+    Directory.systemTemp.createTempSync('vf_storage_').path,
+  );
+  final uploads = UploadService(
+    store: uploadStore,
+    storage: storage,
+    sync: syncStore,
+    clock: c,
+  );
   return ServerContext(
     config: const ServerConfig(jwtSecret: 'test-secret'),
     syncStore: syncStore,
-    sync: SyncService(store: syncStore, clock: c),
+    sync: SyncService(store: syncStore, clock: c, ownsBlob: uploads.ownsBlob),
+    uploadStore: uploadStore,
+    storage: storage,
+    uploads: uploads,
+    content: ContentService(
+      sync: syncStore,
+      uploads: uploadStore,
+      storage: storage,
+    ),
     store: store,
     hasher: hasher,
     tokens: tokens,

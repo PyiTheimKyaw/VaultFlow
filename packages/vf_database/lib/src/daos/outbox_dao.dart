@@ -198,6 +198,22 @@ class OutboxDao extends DatabaseAccessor<VaultFlowDatabase>
         .watchSingle();
   }
 
+  /// Merges [patch] into the payload of rows blocked on [transferId] (the
+  /// document create learns its `storage_key` when the upload completes).
+  Future<void> patchBlockedPayload(
+    String transferId,
+    Map<String, Object?> patch,
+  ) async {
+    final rows = await (select(
+      syncOutbox,
+    )..where((o) => o.dependsOnTransfer.equals(transferId))).get();
+    for (final row in rows) {
+      await (update(syncOutbox)..where((o) => o.id.equals(row.id))).write(
+        SyncOutboxCompanion(payload: Value({...row.payload, ...patch})),
+      );
+    }
+  }
+
   /// Releases rows waiting on a completed transfer.
   Future<void> unblock(String transferId) =>
       (update(

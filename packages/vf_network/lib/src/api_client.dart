@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_network/src/auth_interceptor.dart';
@@ -74,6 +76,94 @@ class ApiClient {
     ),
     ChangesResponse.fromJson,
   );
+
+  // -------------------------------------------------------------- transfers
+
+  Future<Result<UploadSessionResponse>> createUpload(
+    UploadSessionCreateRequest request,
+  ) => _run(
+    () => _dio.post<Map<String, Object?>>(
+      ApiPaths.uploads,
+      data: request.toJson(),
+    ),
+    UploadSessionResponse.fromJson,
+  );
+
+  Future<Result<UploadSessionStatus>> uploadStatus(String uploadId) => _run(
+    () => _dio.get<Map<String, Object?>>(ApiPaths.upload(uploadId)),
+    UploadSessionStatus.fromJson,
+  );
+
+  /// Sends one raw chunk. [sha256] travels in `X-Chunk-Sha256` so the
+  /// server can reject corrupted bodies before touching storage.
+  Future<Result<UploadChunkResponse>> putChunk(
+    String uploadId,
+    int index,
+    List<int> bytes, {
+    required String sha256,
+    CancelToken? cancelToken,
+    void Function(int sent, int total)? onSendProgress,
+  }) => _run(
+    () => _dio.put<Map<String, Object?>>(
+      ApiPaths.uploadChunk(uploadId, index),
+      data: Stream.value(Uint8List.fromList(bytes)),
+      options: Options(
+        headers: {
+          Headers.contentTypeHeader: 'application/octet-stream',
+          Headers.contentLengthHeader: bytes.length,
+          ApiPaths.chunkHashHeader: sha256,
+        },
+        sendTimeout: const Duration(minutes: 5),
+      ),
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+    ),
+    UploadChunkResponse.fromJson,
+  );
+
+  Future<Result<UploadCompleteResponse>> completeUpload(String uploadId) =>
+      _run(
+        () =>
+            _dio.post<Map<String, Object?>>(ApiPaths.uploadComplete(uploadId)),
+        UploadCompleteResponse.fromJson,
+      );
+
+  /// Opens a ranged download starting at [offset]. The caller drains
+  /// [ContentDownload.stream]; the response's ETag is the document's sha256.
+  Future<Result<ContentDownload>> downloadContent(
+    String documentId, {
+    int offset = 0,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await _dio.get<ResponseBody>(
+        ApiPaths.documentContent(documentId),
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: {if (offset > 0) 'Range': 'bytes=$offset-'},
+          receiveTimeout: Duration.zero,
+          // 206 for a partial response, 200 when the server ignored Range.
+          validateStatus: (s) => s == 200 || s == 206,
+        ),
+        cancelToken: cancelToken,
+      );
+      final headers = response.headers;
+      final contentRange = headers.value('content-range');
+      final total = contentRange == null
+          ? int.tryParse(headers.value('content-length') ?? '')
+          : int.tryParse(contentRange.split('/').last);
+      return Ok(
+        ContentDownload(
+          stream: response.data!.stream,
+          etag: (headers.value('etag') ?? '').replaceAll('"', ''),
+          startsAt: response.statusCode == 206 ? offset : 0,
+          totalBytes: total,
+        ),
+      );
+    } on DioException catch (e, stackTrace) {
+      return Err(mapDioException(e, stackTrace));
+    }
+  }
 
   Future<Result<MeResponse>> me() => _run(
     () => _dio.get<Map<String, Object?>>(ApiPaths.authMe),
@@ -153,4 +243,23 @@ class ApiClient {
     RegExp('[A-Z]'),
     (m) => '_${m[0]!.toLowerCase()}',
   );
+}
+
+/// A streaming ranged read of a document's content.
+class ContentDownload {
+  const ContentDownload({
+    required this.stream,
+    required this.etag,
+    required this.startsAt,
+    this.totalBytes,
+  });
+
+  final Stream<Uint8List> stream;
+
+  /// The document's sha256 as reported by the server.
+  final String etag;
+
+  /// Byte offset the stream starts at (0 when the server ignored `Range`).
+  final int startsAt;
+  final int? totalBytes;
 }

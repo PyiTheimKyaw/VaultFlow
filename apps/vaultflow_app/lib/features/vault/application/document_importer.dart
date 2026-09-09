@@ -9,8 +9,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
+import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_domain/vf_domain.dart';
+import 'package:vf_transfer/vf_transfer.dart';
 
 part 'document_importer.g.dart';
 
@@ -52,11 +54,16 @@ final class DocumentImporter {
   const DocumentImporter({
     required this.useCases,
     required this.cacheDirectory,
+    this.transfers,
     this.isWeb = kIsWeb,
   });
 
   final VaultUseCases useCases;
   final CacheDirectory cacheDirectory;
+
+  /// When present, native imports queue a resumable upload and the
+  /// document's sync op waits for it.
+  final TransferEngine? transfers;
   final bool isWeb;
 
   /// Opens the OS picker and imports every selected file.
@@ -124,14 +131,28 @@ final class DocumentImporter {
           await tmp.rename(finalFile.path);
         }
         localPath = finalFile.path;
-        return await useCases.importDocument(
+        final engine = transfers;
+        final sessionId = engine == null ? null : VfId.next();
+        final result = await useCases.importDocument(
           name: source.name,
           mimeType: mimeTypeFor(source.name),
           sizeBytes: size,
           sha256: hash,
           folderId: folderId,
           localPath: localPath,
+          dependsOnTransfer: sessionId,
         );
+        if (result case Ok(:final value)
+            when engine != null && sessionId != null) {
+          await engine.enqueueUpload(
+            documentId: value.id,
+            localPath: localPath,
+            totalBytes: size,
+            sha256: hash,
+            sessionId: sessionId,
+          );
+        }
+        return result;
       }
       hasher.close();
       return await useCases.importDocument(
@@ -171,6 +192,7 @@ CacheDirectory cacheDirectory(Ref ref) => const AppSupportCacheDirectory();
 DocumentImporter documentImporter(Ref ref) => DocumentImporter(
   useCases: ref.watch(vaultUseCasesProvider),
   cacheDirectory: ref.watch(cacheDirectoryProvider),
+  transfers: kIsWeb ? null : ref.watch(transferEngineProvider),
 );
 
 /// Convenience for tests: an [ImportSource] over in-memory bytes.

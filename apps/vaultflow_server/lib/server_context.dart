@@ -5,9 +5,15 @@ import 'package:vaultflow_server/auth/postgres_auth_store.dart';
 import 'package:vaultflow_server/auth/token_service.dart';
 import 'package:vaultflow_server/config.dart';
 import 'package:vaultflow_server/db/database.dart';
+import 'package:vaultflow_server/storage/s3_storage.dart';
+import 'package:vaultflow_server/storage/storage_adapter.dart';
 import 'package:vaultflow_server/sync/postgres_sync_store.dart';
 import 'package:vaultflow_server/sync/sync_service.dart';
 import 'package:vaultflow_server/sync/sync_store.dart';
+import 'package:vaultflow_server/transfer/content_service.dart';
+import 'package:vaultflow_server/transfer/postgres_upload_store.dart';
+import 'package:vaultflow_server/transfer/upload_service.dart';
+import 'package:vaultflow_server/transfer/upload_store.dart';
 import 'package:vf_core/vf_core.dart';
 
 const _log = Logger('server');
@@ -22,6 +28,10 @@ class ServerContext {
     required this.auth,
     required this.syncStore,
     required this.sync,
+    required this.uploadStore,
+    required this.storage,
+    required this.uploads,
+    required this.content,
     this.database,
   });
 
@@ -32,17 +42,39 @@ class ServerContext {
     final Database? database;
     final AuthStore store;
     final SyncStore syncStore;
+    final UploadStore uploadStore;
     if (config.usesPostgres) {
       database = Database.fromUrl(config.databaseUrl!);
       store = PostgresAuthStore(database.pool);
       syncStore = PostgresSyncStore(database.pool);
+      uploadStore = PostgresUploadStore(database.pool);
       _log.info('using postgres store');
     } else {
       database = null;
       store = InMemoryAuthStore();
       syncStore = InMemorySyncStore();
+      uploadStore = InMemoryUploadStore();
       _log.warning('DATABASE_URL not set: using in-memory store (dev only)');
     }
+    final storage = switch (config.storageBackend) {
+      StorageBackend.s3 => S3Storage(config.s3!),
+      StorageBackend.local => LocalFsStorage(config.storageRoot),
+    };
+    _log.info(
+      'object storage',
+      fields: {
+        'backend': config.storageBackend.name,
+        'root': config.storageRoot,
+      },
+    );
+    final uploads = UploadService(
+      store: uploadStore,
+      storage: storage,
+      sync: syncStore,
+      sessionTtl: config.uploadSessionTtl,
+      maxChunkSize: config.maxChunkSize,
+      clock: clock,
+    );
     final hasher = PasswordHasher(
       memoryKiB: config.argon2MemoryKiB,
       iterations: config.argon2Iterations,
@@ -66,7 +98,19 @@ class ServerContext {
         clock: clock,
       ),
       syncStore: syncStore,
-      sync: SyncService(store: syncStore, clock: clock),
+      sync: SyncService(
+        store: syncStore,
+        clock: clock,
+        ownsBlob: uploads.ownsBlob,
+      ),
+      uploadStore: uploadStore,
+      storage: storage,
+      uploads: uploads,
+      content: ContentService(
+        sync: syncStore,
+        uploads: uploadStore,
+        storage: storage,
+      ),
     );
   }
 
@@ -78,6 +122,10 @@ class ServerContext {
   final AuthService auth;
   final SyncStore syncStore;
   final SyncService sync;
+  final UploadStore uploadStore;
+  final StorageAdapter storage;
+  final UploadService uploads;
+  final ContentService content;
 }
 
 ServerContext? _global;

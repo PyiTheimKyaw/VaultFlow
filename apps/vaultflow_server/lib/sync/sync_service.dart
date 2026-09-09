@@ -12,10 +12,18 @@ import 'package:vf_protocol/vf_protocol.dart';
 ///    snapshot; the op is not applied.
 /// 4. Otherwise apply, bump the version, append to the change feed.
 class SyncService {
-  SyncService({required this.store, this.clock = const SystemClock()});
+  SyncService({
+    required this.store,
+    this.clock = const SystemClock(),
+    this.ownsBlob,
+  });
 
   final SyncStore store;
   final Clock clock;
+
+  /// Whether `(userId, storageKey)` names a blob the user uploaded; when
+  /// set, document snapshots with a foreign `storage_key` are rejected.
+  final Future<bool> Function(String userId, String storageKey)? ownsBlob;
 
   Future<PushResponse> push({
     required String userId,
@@ -110,6 +118,13 @@ class SyncService {
       return _rejected(op, e.message);
     } on Object catch (e) {
       return _rejected(op, 'invalid payload: $e');
+    }
+    if (op.entityType == EntityType.document) {
+      final key = next['storage_key'];
+      final check = ownsBlob;
+      if (key is String && check != null && !await check(userId, key)) {
+        return _rejected(op, 'storage_key does not name a blob you uploaded');
+      }
     }
     final newVersion = currentVersion + 1;
     next['version'] = newVersion;
