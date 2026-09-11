@@ -66,6 +66,8 @@ class AppShell extends ConsumerWidget {
       final l when l.startsWith(AppRoutes.settingsLock) => l10n.titleVaultLock,
       final l when l.startsWith(AppRoutes.settingsConflicts) =>
         l10n.titleConflicts,
+      final l when l.startsWith(AppRoutes.settingsDiagnostics) => 'Diagnostics',
+      final l when l.startsWith(AppRoutes.settingsStorage) => 'Storage',
       final l when l.startsWith(AppRoutes.search) => l10n.titleSearch,
       _ => labels[navigationShell.currentIndex],
     };

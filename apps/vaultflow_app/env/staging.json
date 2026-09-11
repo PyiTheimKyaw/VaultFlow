@@ -1,0 +1,5 @@
+{
+  "VAULTFLOW_ENV": "staging",
+  "VAULTFLOW_API_BASE_URL": "https://staging.api.vaultflow.example",
+  "SENTRY_DSN": ""
+}

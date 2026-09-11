@@ -4,11 +4,15 @@
     "start_url": "/vault",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#0f172a",
+    "background_color": "#3556D8",
     "theme_color": "#3556D8",
     "description": "Your offline-first personal vault: folders, files and notes that sync across devices.",
     "orientation": "any",
     "prefer_related_applications": false,
+    "categories": [
+        "productivity",
+        "utilities"
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",
@@ -32,9 +36,5 @@
             "type": "image/png",
             "purpose": "maskable"
         }
-    ],
-    "categories": [
-        "productivity",
-        "utilities"
     ]
 }

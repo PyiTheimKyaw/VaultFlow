@@ -92,8 +92,15 @@ class LocalFsStorage implements StorageAdapter {
     if (file.existsSync()) await file.delete();
   }
 
-  static String _safe(String id) =>
-      id.replaceAll(RegExp('[^A-Za-z0-9._-]'), '_');
+  /// Characters outside `[A-Za-z0-9._-]` become `_`, and the two special
+  /// directory names (`.`, `..`) are neutralised so a hostile id or key can
+  /// never climb out of [root].
+  static String _safe(String id) {
+    final cleaned = id.replaceAll(RegExp('[^A-Za-z0-9._-]'), '_');
+    return cleaned == '.' || cleaned == '..' || cleaned.isEmpty
+        ? '_${cleaned.replaceAll('.', '_')}'
+        : cleaned;
+  }
 
   /// Keys are `<segment>/<segment>/...`; each segment is sanitised so a key
   /// can never escape [root].

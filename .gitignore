@@ -55,3 +55,8 @@ app.*.map.json
 
 # Docker volumes
 .docker-data/
+
+# Release signing (see docs/RELEASE.md)
+apps/vaultflow_app/android/key.properties
+*.jks
+*.keystore

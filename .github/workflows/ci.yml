@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -61,7 +62,7 @@ jobs:
         run: flutter pub get
 
       - name: Format
-        run: dart format --set-exit-if-changed apps packages
+        run: git ls-files -co --exclude-standard -- 'apps/*.dart' 'packages/*.dart' | xargs dart format --set-exit-if-changed --output=none
 
       - name: Analyze
         run: dart analyze --fatal-infos .
@@ -83,3 +84,68 @@ jobs:
           for dir in packages/vf_database packages/vf_network packages/vf_security packages/vf_sync packages/vf_transfer packages/vf_ui apps/vaultflow_app; do
             echo "::group::$dir"; (cd "$dir" && flutter test --reporter github); echo "::endgroup::"
           done
+
+  # End-to-end suites drive the real app against a live in-memory API. They
+  # need macOS or an emulator, so they run on pushes to main and on demand.
+  e2e-macos:
+    name: E2E (macOS)
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+          cache: true
+      - run: flutter pub get
+      - name: Start API (in-memory)
+        run: |
+          nohup bash scripts/dev_server.sh > server.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://localhost:8080/health >/dev/null && break; sleep 1; done
+          curl -sf http://localhost:8080/health
+      - name: Run e2e
+        working-directory: apps/vaultflow_app
+        run: flutter test integration_test -d macos
+      - name: Server log
+        if: always()
+        run: tail -100 server.log
+
+  e2e-android:
+    name: E2E (Android emulator)
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+          cache: true
+      - run: flutter pub get
+      - name: Start API (in-memory)
+        run: |
+          nohup bash scripts/dev_server.sh > server.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://localhost:8080/health >/dev/null && break; sleep 1; done
+      - name: Run e2e on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          # 10.0.2.2 is the host from inside the emulator.
+          script: cd apps/vaultflow_app && flutter test integration_test -d emulator-5554 --dart-define=VAULTFLOW_API_BASE_URL=http://10.0.2.2:8080
+      - name: Server log
+        if: always()
+        run: tail -100 server.log

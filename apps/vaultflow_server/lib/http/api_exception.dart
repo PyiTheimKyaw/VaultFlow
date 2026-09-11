@@ -4,7 +4,7 @@ import 'package:vf_protocol/vf_protocol.dart';
 /// Thrown anywhere in a request; `errorHandler()` turns it into the standard
 /// `{"error": {...}}` envelope with the code's HTTP status.
 class ApiException implements Exception {
-  const ApiException(this.code, this.message, {this.details});
+  const ApiException(this.code, this.message, {this.details, this.headers});
 
   const ApiException.badRequest(String message, {Map<String, Object?>? details})
     : this(ApiErrorCode.badRequest, message, details: details);
@@ -25,8 +25,14 @@ class ApiException implements Exception {
   ApiError get error =>
       ApiError(code: code, message: message, details: details);
 
-  Response toResponse() =>
-      Response.json(statusCode: code.httpStatus, body: error.toEnvelope());
+  /// Extra response headers (`Retry-After` for 429).
+  final Map<String, String>? headers;
+
+  Response toResponse() => Response.json(
+    statusCode: code.httpStatus,
+    body: error.toEnvelope(),
+    headers: headers ?? const {},
+  );
 
   @override
   String toString() => 'ApiException(${code.name}: $message)';

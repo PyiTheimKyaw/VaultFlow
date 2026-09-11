@@ -10,6 +10,8 @@ abstract final class AppRoutes {
   static const String settingsOutbox = '/settings/outbox';
   static const String settingsLock = '/settings/lock';
   static const String settingsConflicts = '/settings/conflicts';
+  static const String settingsDiagnostics = '/settings/diagnostics';
+  static const String settingsStorage = '/settings/storage';
 
   static const String folderParam = 'folderId';
   static const String noteParam = 'noteId';
@@ -35,4 +37,6 @@ abstract final class AppRoutes {
   static const String settingsOutboxName = 'settings-outbox';
   static const String settingsLockName = 'settings-lock';
   static const String settingsConflictsName = 'settings-conflicts';
+  static const String settingsDiagnosticsName = 'settings-diagnostics';
+  static const String settingsStorageName = 'settings-storage';
 }

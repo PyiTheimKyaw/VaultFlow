@@ -71,5 +71,20 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-vaultflow-secret}
       S3_BUCKET: ${S3_BUCKET:-vaultflow}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      STORAGE_BACKEND: s3
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-20}
     ports:
       - "${API_PORT:-8080}:8080"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

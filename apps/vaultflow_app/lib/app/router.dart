@@ -11,8 +11,10 @@ import 'package:vaultflow_app/features/lock/presentation/lock_settings_page.dart
 import 'package:vaultflow_app/features/notes/presentation/note_editor_page.dart';
 import 'package:vaultflow_app/features/notes/presentation/notes_page.dart';
 import 'package:vaultflow_app/features/search/presentation/search_page.dart';
+import 'package:vaultflow_app/features/settings/presentation/diagnostics_page.dart';
 import 'package:vaultflow_app/features/settings/presentation/outbox_debug_page.dart';
 import 'package:vaultflow_app/features/settings/presentation/settings_page.dart';
+import 'package:vaultflow_app/features/settings/presentation/storage_page.dart';
 import 'package:vaultflow_app/features/transfers/presentation/transfers_page.dart';
 import 'package:vaultflow_app/features/vault/presentation/vault_page.dart';
 
@@ -141,6 +143,16 @@ GoRouter router(Ref ref) {
                     path: 'conflicts',
                     name: AppRoutes.settingsConflictsName,
                     builder: (context, state) => const ConflictsPage(),
+                  ),
+                  GoRoute(
+                    path: 'diagnostics',
+                    name: AppRoutes.settingsDiagnosticsName,
+                    builder: (context, state) => const DiagnosticsPage(),
+                  ),
+                  GoRoute(
+                    path: 'storage',
+                    name: AppRoutes.settingsStorageName,
+                    builder: (context, state) => const StoragePage(),
                   ),
                 ],
               ),

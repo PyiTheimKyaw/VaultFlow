@@ -5,7 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 echo "▶ dart format"
-dart format --set-exit-if-changed apps packages
+# Only files git knows about: skips dart_frog/Flutter build output.
+git ls-files -co --exclude-standard -- "apps/*.dart" "packages/*.dart" | xargs dart format --set-exit-if-changed --output=none
 
 echo "▶ dart analyze"
 dart analyze --fatal-infos .

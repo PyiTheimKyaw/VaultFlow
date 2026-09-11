@@ -22,6 +22,11 @@ class DocumentsDao extends DatabaseAccessor<VaultFlowDatabase>
           ))
           .get();
 
+  Stream<List<DocumentRow>> watchAllLive() => _selectLive().watch();
+
+  Future<List<DocumentRow>> getCached() =>
+      (_selectLive()..where((d) => d.cacheState.equals('none').not())).get();
+
   /// Case-insensitive substring match on the name; prefix matches first.
   Future<List<DocumentRow>> searchByName(String query, {int limit = 50}) {
     final needle = escapeLike(query);

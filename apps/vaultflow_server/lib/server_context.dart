@@ -5,6 +5,9 @@ import 'package:vaultflow_server/auth/postgres_auth_store.dart';
 import 'package:vaultflow_server/auth/token_service.dart';
 import 'package:vaultflow_server/config.dart';
 import 'package:vaultflow_server/db/database.dart';
+import 'package:vaultflow_server/http/in_flight.dart';
+import 'package:vaultflow_server/http/metrics.dart';
+import 'package:vaultflow_server/http/rate_limiter.dart';
 import 'package:vaultflow_server/storage/s3_storage.dart';
 import 'package:vaultflow_server/storage/storage_adapter.dart';
 import 'package:vaultflow_server/sync/postgres_sync_store.dart';
@@ -34,7 +37,16 @@ class ServerContext {
     required this.content,
     this.clock = const SystemClock(),
     this.database,
-  });
+    Metrics? metrics,
+    RateLimiter? limiter,
+    RateLimiter? authLimiter,
+  }) : metrics = metrics ?? Metrics(clock: clock),
+       limiter =
+           limiter ??
+           RateLimiter(limit: config.rateLimitPerMinute, clock: clock),
+       authLimiter =
+           authLimiter ??
+           RateLimiter(limit: config.authRateLimitPerMinute, clock: clock);
 
   factory ServerContext.create(
     ServerConfig config, {
@@ -74,6 +86,7 @@ class ServerContext {
       sync: syncStore,
       sessionTtl: config.uploadSessionTtl,
       maxChunkSize: config.maxChunkSize,
+      maxUploadBytes: config.maxUploadBytes,
       clock: clock,
     );
     final hasher = PasswordHasher(
@@ -128,6 +141,22 @@ class ServerContext {
   final UploadService uploads;
   final ContentService content;
   final Clock clock;
+  final Metrics metrics;
+  final InFlightTracker inFlight = InFlightTracker();
+
+  /// Where unhandled errors go besides the log (Sentry when configured).
+  void Function(Object error, StackTrace stackTrace)? errorReporter;
+
+  void reportError(Object error, StackTrace stackTrace) =>
+      errorReporter?.call(error, stackTrace);
+
+  /// Releases the database pool; called on graceful shutdown.
+  Future<void> close() async {
+    await database?.close();
+  }
+
+  final RateLimiter limiter;
+  final RateLimiter authLimiter;
 }
 
 ServerContext? _global;

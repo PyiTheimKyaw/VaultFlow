@@ -29,6 +29,12 @@ abstract interface class VaultRepository {
 
   Future<Document?> getDocument(String id);
 
+  /// Live documents that have a local copy (`cacheState != none`).
+  Future<List<Document>> listCachedDocuments();
+
+  /// Every live document, for storage accounting.
+  Stream<List<Document>> watchAllDocuments();
+
   Stream<Document?> watchDocument(String id);
 
   Future<void> createFolder(Folder folder);

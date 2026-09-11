@@ -63,6 +63,15 @@ class DriftVaultRepository implements VaultRepository {
   }
 
   @override
+  Future<List<Document>> listCachedDocuments() async =>
+      (await _documents.getCached()).map(Mappers.document).toList();
+
+  @override
+  Stream<List<Document>> watchAllDocuments() => _documents.watchAllLive().map(
+    (rows) => rows.map(Mappers.document).toList(),
+  );
+
+  @override
   Future<FolderContents> searchByName(String query, {int limit = 50}) async {
     final folders = await _folders.searchByName(query, limit: limit);
     final documents = await _documents.searchByName(query, limit: limit);

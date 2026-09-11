@@ -3,13 +3,17 @@ import 'dart:typed_data';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:vaultflow_server/http/api_exception.dart';
+import 'package:vaultflow_server/server_context.dart';
 import 'package:vf_protocol/vf_protocol.dart';
 
-/// Parses the JSON object body or throws a 400.
+/// Parses the JSON object body or throws a 400. Bodies larger than
+/// `ServerConfig.maxJsonBodyBytes` are refused with 413 before parsing.
 Future<Map<String, Object?>> readJsonObject(RequestContext context) async {
+  final limit = context.read<ServerContext>().config.maxJsonBodyBytes;
+  final raw = await readBoundedBody(context, limit);
   final Object? body;
   try {
-    body = await context.request.json();
+    body = jsonDecode(utf8.decode(raw));
   } on FormatException {
     throw const ApiException.badRequest('Body must be valid JSON');
   }
@@ -30,6 +34,12 @@ Response? methodNotAllowed(RequestContext context, Set<HttpMethod> allowed) {
 
 /// Reads the raw body, refusing anything larger than [maxBytes] with 413.
 Future<List<int>> readBoundedBody(RequestContext context, int maxBytes) async {
+  final declared = int.tryParse(
+    context.request.headers['content-length'] ?? '',
+  );
+  if (declared != null && declared > maxBytes) {
+    throw const ApiException(ApiErrorCode.payloadTooLarge, 'Body too large');
+  }
   final builder = BytesBuilder(copy: false);
   await for (final chunk in context.request.bytes()) {
     builder.add(chunk);

@@ -17,6 +17,7 @@ dependencies:
   minio: ^3.5.8
   path: ^1.9.1
   postgres: ^3.5.12
+  sentry: ^9.30.0
   shelf: ^1.4.2
   vf_core:
     path: ../../packages/vf_core

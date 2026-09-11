@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:vaultflow_app/app/app.dart';
 import 'package:vaultflow_app/app/bootstrap.dart';
 import 'package:vaultflow_app/app/di.dart';
+import 'package:vaultflow_app/app/environment.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
 import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
@@ -14,6 +16,21 @@ import 'package:vf_security/vf_security.dart';
 const _log = Logger('main');
 
 Future<void> main() async {
+  if (AppEnvironment.crashReportingEnabled) {
+    await SentryFlutter.init(
+      (options) => options
+        ..dsn = AppEnvironment.sentryDsn
+        ..environment = AppEnvironment.name
+        ..release = 'vaultflow_app@${AppEnvironment.appVersion}'
+        ..tracesSampleRate = 0.1,
+      appRunner: _start,
+    );
+  } else {
+    await _start();
+  }
+}
+
+Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();
   await bootstrap();
 

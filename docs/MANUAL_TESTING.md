@@ -208,6 +208,46 @@ VAULTFLOW_LIVE_API=http://localhost:8080 flutter test test/live
 12. Android share sheet: from Files/Photos, Share → VaultFlow. The app opens
     and "Imported <name>" appears; the file is in the vault root and uploads.
 
-## 9. Phase 7 — production hardening (pending)
+## 9. Phase 7 — production hardening
 
-To be written when Phase 7 lands.
+1. Flavors: `flutter run -d macos --dart-define-from-file=env/dev.json`;
+   Settings › Diagnostics shows "0.7.0 · dev" and the API URL. Build with
+   `env/prod.json` to see "prod".
+2. Diagnostics: trigger something (sync offline) and check the log tail turns
+   red for warnings; "Copy report" puts the whole thing on the clipboard.
+3. Storage: import a file, wait for the upload, open Settings › Storage; the
+   file is listed as evictable. "Free up space" removes the local copy; the
+   vault row loses "offline" and the details sheet offers Download again.
+4. Disk full (optional, macOS): create a tiny disk image (`hdiutil create
+   -size 2m -fs APFS -volname tiny tiny.dmg && open tiny.dmg`), point the
+   cache there is not possible without code; instead watch a download onto a
+   nearly full volume fail with "Not enough free space" and stay Failed
+   (no retry loop).
+5. Rate limit: `for i in $(seq 1 25); do curl -s -o /dev/null -w "%{http_code}\n" -X POST localhost:8080/auth/login -H 'content-type: application/json' -d '{"email":"x@y.z","password":"p","device_name":"d","platform":"macos"}'; done`
+   → 401s then 429 with `Retry-After` after 20.
+6. Limits: a 2 MB JSON body to `/sync/push` → 413; `total_bytes` above
+   `MAX_UPLOAD_BYTES` → 413; `chunk_size` above `MAX_CHUNK_SIZE` → 400.
+7. Metrics: start with `METRICS_TOKEN=m`, `curl -H 'authorization: Bearer m' localhost:8080/metrics`
+   shows request counters; without the token → 401; unset → 404.
+8. JSON logs: `LOG_FORMAT=json scripts/dev_server.sh` prints one JSON object
+   per line.
+9. Graceful shutdown: start a long download, send `kill -TERM <pid>`; the
+   log shows "shutting down", the download finishes (or the grace elapses),
+   the process exits 0. New connections are refused immediately.
+10. Docker: `docker compose --profile api up -d --build` (add
+    `POSTGRES_PORT=5434` in front if a local Postgres already holds 5432),
+    then `docker compose ps` shows `api` healthy; the api log shows
+    `migrations applied=3`; `curl localhost:8080/health` reports the
+    version; the transfer live smoke passes against it
+    (`VAULTFLOW_LIVE_API=http://localhost:8080 flutter test test/live` in
+    `packages/vf_transfer`). `docker compose stop api` exits cleanly.
+11. Migrations: `flutter test packages/vf_database/test/migration_test.dart`
+    passes; after changing tables, `scripts/schema.sh` records a new version
+    and the test covers the upgrade from every older one.
+12. End-to-end: `scripts/dev_server.sh &` then
+    `cd apps/vaultflow_app && flutter test integration_test -d macos`
+    (register, create, sync, conflict from a second device, resolve, 3 MiB
+    upload and download). On Android: same with
+    `--dart-define=VAULTFLOW_API_BASE_URL=http://10.0.2.2:8080`.
+13. Icons and splash: the app icon shows the vault dial on every platform and
+    the launch screen is brand blue.

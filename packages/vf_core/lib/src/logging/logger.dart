@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:meta/meta.dart';
 
 /// Severity of a log record, ordered from most to least verbose.
@@ -70,6 +72,33 @@ final class ConsoleLogSink implements LogSink {
     // ignore: avoid_print
     print(record);
   }
+}
+
+/// One JSON object per line, for log shippers (Loki, CloudWatch, Datadog).
+final class JsonLogSink implements LogSink {
+  const JsonLogSink({this.out = _printLine});
+
+  final void Function(String line) out;
+
+  static void _printLine(String line) {
+    // Standard output is where log shippers read from.
+    // ignore: avoid_print
+    print(line);
+  }
+
+  static String encode(LogRecord record) => jsonEncode({
+    'ts': record.time.toIso8601String(),
+    'level': record.level.name,
+    'tag': record.tag,
+    'msg': record.message,
+    if (record.fields.isNotEmpty)
+      'fields': {for (final e in record.fields.entries) e.key: '${e.value}'},
+    if (record.error != null) 'error': '${record.error}',
+    if (record.stackTrace != null) 'stack': '${record.stackTrace}',
+  });
+
+  @override
+  void write(LogRecord record) => out(encode(record));
 }
 
 /// Keeps records in memory; for tests and in-app debug screens.

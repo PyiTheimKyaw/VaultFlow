@@ -15,8 +15,18 @@ WORKDIR /workspace/apps/vaultflow_server
 RUN /root/.pub-cache/bin/dart_frog build
 RUN dart compile exe build/bin/server.dart -o build/bin/server
 
-FROM scratch
-COPY --from=build /runtime/ /
+# Slim Debian instead of scratch so the image has CA certificates (S3 over
+# TLS, Sentry) and curl for the container health check.
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home vaultflow
 COPY --from=build /workspace/apps/vaultflow_server/build/bin/server /app/bin/server
+COPY --from=build /workspace/apps/vaultflow_server/migrations /app/migrations
+USER vaultflow
+WORKDIR /app
 EXPOSE 8080
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
+  CMD curl -sf http://localhost:8080/health || exit 1
 CMD ["/app/bin/server"]

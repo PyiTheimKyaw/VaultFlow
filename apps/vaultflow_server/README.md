@@ -50,3 +50,10 @@ Both require a bearer access token; `device_id` in the push body must match the 
 
 Storage: `STORAGE_BACKEND=local` (default, `STORAGE_ROOT`) or `s3` with the
 `S3_*` variables. Sessions expire after `UPLOAD_SESSION_TTL_HOURS`.
+
+## Hardening
+
+Limits, rate limiting, `GET /metrics` (`METRICS_TOKEN`), JSON logs
+(`LOG_FORMAT=json`), Sentry (`SENTRY_DSN`) and graceful shutdown are
+described in `docs/OPERATIONS.md`; the security controls and their tests in
+`docs/SECURITY_REVIEW.md`. `main.dart` is the dart_frog custom entrypoint.

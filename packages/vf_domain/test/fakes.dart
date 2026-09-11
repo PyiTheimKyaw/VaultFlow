@@ -24,6 +24,15 @@ class FakeVaultRepository implements VaultRepository {
   }
 
   @override
+  Future<List<Document>> listCachedDocuments() async => documents.values
+      .where((d) => !d.isDeleted && d.cacheState != CacheState.none)
+      .toList();
+
+  @override
+  Stream<List<Document>> watchAllDocuments() =>
+      Stream.value(documents.values.where((d) => !d.isDeleted).toList());
+
+  @override
   Future<FolderContents> searchByName(String query, {int limit = 50}) async {
     final q = query.toLowerCase();
     return FolderContents(

@@ -673,6 +673,45 @@ final class FolderFamily extends $Family
   String toString() => r'folderProvider';
 }
 
+@ProviderFor(allDocuments)
+final allDocumentsProvider = AllDocumentsProvider._();
+
+final class AllDocumentsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<Document>>,
+          List<Document>,
+          Stream<List<Document>>
+        >
+    with $FutureModifier<List<Document>>, $StreamProvider<List<Document>> {
+  AllDocumentsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'allDocumentsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$allDocumentsHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<Document>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<Document>> create(Ref ref) {
+    return allDocuments(ref);
+  }
+}
+
+String _$allDocumentsHash() => r'0c7d2ad4031511e29e9112e59347c9515166f40f';
+
 @ProviderFor(document)
 final documentProvider = DocumentFamily._();
 

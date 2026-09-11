@@ -22,8 +22,23 @@ bool get isDesktop =>
 ///
 /// * Web: path-based URLs (`/vault/abc` instead of `/#/vault/abc`).
 /// * Desktop: window title and minimum size.
+/// Recent log records, shown on the diagnostics page.
+final MemoryLogSink appLogBuffer = MemoryLogSink(capacity: 400);
+
+/// Console in debug builds, always the in-memory buffer.
+final class _AppLogSink implements LogSink {
+  const _AppLogSink();
+
+  @override
+  void write(LogRecord record) {
+    appLogBuffer.write(record);
+    if (!kReleaseMode) const ConsoleLogSink().write(record);
+  }
+}
+
 Future<void> bootstrap() async {
   Logger.minimumLevel = kReleaseMode ? LogLevel.info : LogLevel.debug;
+  Logger.sink = const _AppLogSink();
 
   if (kIsWeb) {
     usePathUrlStrategy();

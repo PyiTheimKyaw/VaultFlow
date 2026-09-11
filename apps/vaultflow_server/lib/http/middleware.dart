@@ -39,7 +39,10 @@ Middleware requestId() {
 }
 
 /// Converts [ApiException]s and unexpected errors into the error envelope.
-Middleware errorHandler() {
+/// Unexpected errors are also handed to [onUnhandled] (Sentry, when set).
+Middleware errorHandler({
+  void Function(Object error, StackTrace stackTrace)? onUnhandled,
+}) {
   return (handler) => (context) async {
     try {
       return await handler(context);
@@ -47,11 +50,28 @@ Middleware errorHandler() {
       return e.toResponse();
     } on Object catch (error, stackTrace) {
       _log.error('unhandled error', error: error, stackTrace: stackTrace);
+      onUnhandled?.call(error, stackTrace);
       return const ApiException(
         ApiErrorCode.internal,
         'Internal server error',
       ).toResponse();
     }
+  };
+}
+
+/// Defensive headers for an API that browsers talk to.
+Middleware securityHeaders() {
+  return (handler) => (context) async {
+    final response = await handler(context);
+    return response.copyWith(
+      headers: {
+        ...response.headers,
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'no-referrer',
+        'Cache-Control': response.headers['Cache-Control'] ?? 'no-store',
+      },
+    );
   };
 }
 

@@ -102,6 +102,22 @@ class DownloadWorker {
         }
       } on DioException catch (e) {
         throw TransferException(ApiClient.mapDioException(e));
+      } on FileSystemException catch (e) {
+        // ENOSPC/EDQUOT: retrying cannot help; tell the user plainly.
+        final code = e.osError?.errorCode;
+        if (code == 28 || code == 122) {
+          throw TransferException(
+            StorageFailure(
+              'Not enough free space on this device to download this file',
+              cause: e,
+            ),
+            retryable: false,
+          );
+        }
+        throw TransferException(
+          StorageFailure('Could not write the file: $e', cause: e),
+          retryable: false,
+        );
       } on Object catch (e) {
         throw TransferException(
           NetworkFailure('Download interrupted: $e', cause: e),

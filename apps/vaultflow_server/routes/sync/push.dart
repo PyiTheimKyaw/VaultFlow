@@ -19,10 +19,18 @@ Future<Response> onRequest(RequestContext context) async {
       'device_id does not match the access token',
     );
   }
-  final response = await context.read<ServerContext>().sync.push(
+  final server = context.read<ServerContext>();
+  final response = await server.sync.push(
     userId: auth.userId,
     deviceId: auth.deviceId,
     request: request,
   );
+  for (final r in response.results) {
+    server.metrics.increment(switch (r.status) {
+      SyncOpStatus.applied => 'sync_ops_applied',
+      SyncOpStatus.conflict => 'sync_conflicts',
+      SyncOpStatus.rejected => 'sync_ops_rejected',
+    });
+  }
   return json(response.toJson());
 }

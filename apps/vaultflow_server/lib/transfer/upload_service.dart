@@ -25,6 +25,7 @@ class UploadService {
     required this.sync,
     this.sessionTtl = const Duration(hours: 24),
     this.maxChunkSize = 8 * 1024 * 1024,
+    this.maxUploadBytes = 10 * 1024 * 1024 * 1024,
     this.clock = const SystemClock(),
   });
 
@@ -33,6 +34,9 @@ class UploadService {
   final SyncStore sync;
   final Duration sessionTtl;
   final int maxChunkSize;
+
+  /// Largest declared file size.
+  final int maxUploadBytes;
   final Clock clock;
 
   static final RegExp _hex64 = RegExp(r'^[0-9a-f]{64}$');
@@ -53,6 +57,12 @@ class UploadService {
     }
     if (request.totalBytes < 0) {
       throw const ApiException.validation('total_bytes must be >= 0');
+    }
+    if (request.totalBytes > maxUploadBytes) {
+      throw ApiException(
+        ApiErrorCode.payloadTooLarge,
+        'Files larger than $maxUploadBytes bytes are not accepted',
+      );
     }
     if (request.chunkSize <= 0 || request.chunkSize > maxChunkSize) {
       throw ApiException.validation('chunk_size must be 1..$maxChunkSize');

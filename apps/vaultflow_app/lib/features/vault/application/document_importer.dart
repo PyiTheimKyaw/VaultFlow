@@ -11,6 +11,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vaultflow_app/app/di.dart';
 import 'package:vaultflow_app/features/shared/formatting.dart';
 import 'package:vaultflow_app/features/transfers/application/transfer_providers.dart';
+import 'package:vaultflow_app/features/vault/application/cache_manager.dart';
 import 'package:vf_core/vf_core.dart';
 import 'package:vf_domain/vf_domain.dart';
 import 'package:vf_transfer/vf_transfer.dart';
@@ -183,6 +184,15 @@ final class DocumentImporter {
         return result;
       }
     } on Object catch (error, stackTrace) {
+      if (CacheManager.isDiskFull(error)) {
+        return Err(
+          StorageFailure(
+            CacheManager.diskFullMessage,
+            cause: error,
+            stackTrace: stackTrace,
+          ),
+        );
+      }
       return Err(
         StorageFailure(
           'Could not import ${source.name}: $error',

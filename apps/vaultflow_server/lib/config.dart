@@ -18,6 +18,15 @@ class ServerConfig {
     this.maxChunkSize = 8 * 1024 * 1024,
     this.downloadLinkTtl = const Duration(minutes: 5),
     this.eventsMaxAge = const Duration(minutes: 5),
+    this.maxJsonBodyBytes = 1024 * 1024,
+    this.maxUploadBytes = 10 * 1024 * 1024 * 1024,
+    this.rateLimitPerMinute = 600,
+    this.authRateLimitPerMinute = 20,
+    this.trustProxy = false,
+    this.logFormat = LogFormat.text,
+    this.sentryDsn,
+    this.metricsToken,
+    this.shutdownGrace = const Duration(seconds: 20),
   });
 
   factory ServerConfig.fromEnvironment([Map<String, String>? env]) {
@@ -59,6 +68,17 @@ class ServerConfig {
       maxChunkSize: intOr('MAX_CHUNK_SIZE', 8 * 1024 * 1024),
       downloadLinkTtl: Duration(minutes: intOr('DOWNLOAD_LINK_TTL_MINUTES', 5)),
       eventsMaxAge: Duration(minutes: intOr('EVENTS_MAX_AGE_MINUTES', 5)),
+      maxJsonBodyBytes: intOr('MAX_JSON_BODY_BYTES', 1024 * 1024),
+      maxUploadBytes: intOr('MAX_UPLOAD_BYTES', 10 * 1024 * 1024 * 1024),
+      rateLimitPerMinute: intOr('RATE_LIMIT_PER_MINUTE', 600),
+      authRateLimitPerMinute: intOr('AUTH_RATE_LIMIT_PER_MINUTE', 20),
+      trustProxy: e['TRUST_PROXY'] == 'true',
+      logFormat: e['LOG_FORMAT'] == 'json' ? LogFormat.json : LogFormat.text,
+      sentryDsn: (e['SENTRY_DSN'] ?? '').isEmpty ? null : e['SENTRY_DSN'],
+      metricsToken: (e['METRICS_TOKEN'] ?? '').isEmpty
+          ? null
+          : e['METRICS_TOKEN'],
+      shutdownGrace: Duration(seconds: intOr('SHUTDOWN_GRACE_SECONDS', 20)),
       databaseUrl: (e['DATABASE_URL'] ?? '').isEmpty ? null : e['DATABASE_URL'],
       accessTokenTtl: Duration(minutes: intOr('ACCESS_TOKEN_TTL_MINUTES', 15)),
       refreshTokenTtl: Duration(days: intOr('REFRESH_TOKEN_TTL_DAYS', 30)),
@@ -91,6 +111,35 @@ class ServerConfig {
   /// Lifetime of a signed browser download link.
   final Duration downloadLinkTtl;
 
+  /// Largest accepted JSON request body.
+  final int maxJsonBodyBytes;
+
+  /// Largest file an upload session may declare.
+  final int maxUploadBytes;
+
+  /// Requests per minute per client (IP, or user once authenticated);
+  /// `0` disables limiting.
+  final int rateLimitPerMinute;
+
+  /// Stricter budget for `/auth/login` and `/auth/register` per IP.
+  final int authRateLimitPerMinute;
+
+  /// Read the client IP from `X-Forwarded-For` (only behind a proxy you
+  /// control).
+  final bool trustProxy;
+
+  final LogFormat logFormat;
+
+  /// When set, unhandled errors are reported to Sentry.
+  final String? sentryDsn;
+
+  /// When set, `GET /metrics` is enabled for callers presenting it as a
+  /// bearer token.
+  final String? metricsToken;
+
+  /// How long in-flight requests may finish after SIGTERM.
+  final Duration shutdownGrace;
+
   /// How long one `/sync/events` connection stays open before the client
   /// must reconnect.
   final Duration eventsMaxAge;
@@ -119,3 +168,5 @@ class S3Config {
   final String bucket;
   final String? region;
 }
+
+enum LogFormat { text, json }

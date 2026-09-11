@@ -10,7 +10,20 @@ import 'package:vf_protocol/vf_protocol.dart';
 class MockRequestContext extends Mock implements RequestContext;
 
 /// An in-memory [ServerContext] with cheap Argon2id parameters.
-ServerContext testContext({FakeClock? clock}) {
+ServerContext testContext({FakeClock? clock}) =>
+    ServerContextFixture.withConfig(
+      const ServerConfig(jwtSecret: 'test-secret'),
+      clock: clock,
+    );
+
+/// Builds an in-memory [ServerContext] for any [ServerConfig].
+abstract final class ServerContextFixture {
+  static ServerContext withConfig(ServerConfig config, {FakeClock? clock}) {
+    return _build(config, clock);
+  }
+}
+
+ServerContext _build(ServerConfig config, FakeClock? clock) {
   final c = clock ?? FakeClock(DateTime.utc(2026, 9, 6, 12));
   final store = InMemoryAuthStore();
   final hasher = PasswordHasher(memoryKiB: 256, iterations: 1);
@@ -29,9 +42,11 @@ ServerContext testContext({FakeClock? clock}) {
     storage: storage,
     sync: syncStore,
     clock: c,
+    maxChunkSize: config.maxChunkSize,
+    maxUploadBytes: config.maxUploadBytes,
   );
   return ServerContext(
-    config: const ServerConfig(jwtSecret: 'test-secret'),
+    config: config,
     syncStore: syncStore,
     sync: SyncService(store: syncStore, clock: c, ownsBlob: uploads.ownsBlob),
     uploadStore: uploadStore,

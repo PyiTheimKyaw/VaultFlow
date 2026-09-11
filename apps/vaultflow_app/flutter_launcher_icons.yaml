@@ -1,0 +1,19 @@
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  android: true
+  adaptive_icon_background: "#3556D8"
+  adaptive_icon_foreground: "assets/icon/icon_maskable.png"
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: "assets/icon/icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#3556D8"
+    theme_color: "#3556D8"

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vaultflow_app/app/di.dart';
+import 'package:vaultflow_app/app/environment.dart';
 import 'package:vaultflow_app/app/routes.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/sync/application/sync_coordinator.dart';
@@ -95,6 +96,25 @@ class SettingsPage extends ConsumerWidget {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.go(AppRoutes.settingsConflicts),
+          ),
+          const Divider(),
+          ListTile(
+            key: const Key('settings-storage'),
+            leading: const Icon(Icons.sd_storage_outlined),
+            title: const Text('Storage'),
+            subtitle: const Text('Local cache and offline copies'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(AppRoutes.settingsStorage),
+          ),
+          ListTile(
+            key: const Key('settings-diagnostics'),
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('Diagnostics'),
+            subtitle: const Text(
+              'Version ${AppEnvironment.appVersion} · ${AppEnvironment.name}',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(AppRoutes.settingsDiagnostics),
           ),
           const Divider(),
           ListTile(

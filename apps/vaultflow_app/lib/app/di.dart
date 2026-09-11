@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vaultflow_app/app/environment.dart';
 import 'package:vaultflow_app/features/auth/application/session_controller.dart';
 import 'package:vaultflow_app/features/auth/data/secure_token_store.dart';
 import 'package:vaultflow_app/features/lock/application/lock_settings_store.dart';
@@ -88,6 +89,10 @@ Stream<Folder?> folder(Ref ref, String id) =>
     ref.watch(vaultRepositoryProvider).watchFolder(id);
 
 @riverpod
+Stream<List<Document>> allDocuments(Ref ref) =>
+    ref.watch(vaultRepositoryProvider).watchAllDocuments();
+
+@riverpod
 Stream<Document?> document(Ref ref, String id) =>
     ref.watch(vaultRepositoryProvider).watchDocument(id);
 
@@ -125,11 +130,8 @@ UrlOpener urlOpener(Ref ref) =>
       webOnlyWindowName: '_self',
     );
 
-/// API origin; override with `--dart-define=VAULTFLOW_API_BASE_URL=...`.
-const String apiBaseUrl = String.fromEnvironment(
-  'VAULTFLOW_API_BASE_URL',
-  defaultValue: 'http://localhost:8080',
-);
+/// API origin; see [AppEnvironment].
+const String apiBaseUrl = AppEnvironment.apiBaseUrl;
 
 @Riverpod(keepAlive: true)
 SecureStore secureStore(Ref ref) => KeychainSecureStore();
