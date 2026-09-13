@@ -77,7 +77,7 @@ docker compose exec -T postgres pg_restore -U vaultflow -d vaultflow --clean --i
 **MinIO** (file content, content-addressed under `u/<user>/<sha[0:2]>/<sha>`):
 
 ```bash
-docker run --rm --network host --entrypoint sh minio/mc:latest -c \
+docker run --rm --network host --entrypoint sh quay.io/minio/mc:latest -c \
   "mc alias set l http://localhost:9000 vaultflow vaultflow-secret && mc mirror l/vaultflow /backup/vaultflow"
 ```
 
